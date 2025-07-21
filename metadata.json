@@ -1,0 +1,6 @@
+{
+  "name": "BeautyFlow AI",
+  "description": "An AI-powered dashboard for beauty professionals to manage clients, generate marketing content, and optimize their business, built with React and Gemini.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
