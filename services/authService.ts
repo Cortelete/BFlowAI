@@ -5,27 +5,29 @@ const SESSION_STORAGE_KEY = 'beautyflow_session';
 
 /**
  * Retrieves all users from localStorage.
- * @returns {User[]} An array of user objects.
+ * @returns {Promise<User[]>} A promise that resolves to an array of user objects.
  */
-const getUsers = (): User[] => {
+const getUsers = async (): Promise<User[]> => {
     const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
-    return usersJson ? JSON.parse(usersJson) : [];
+    return Promise.resolve(usersJson ? JSON.parse(usersJson) : []);
 };
 
 /**
  * Saves an array of users to localStorage.
  * @param {User[]} users - The array of users to save.
+ * @returns {Promise<void>}
  */
-const saveUsers = (users: User[]): void => {
+const saveUsers = async (users: User[]): Promise<void> => {
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    return Promise.resolve();
 };
 
 /**
  * Initializes the user database. If no users exist, it creates the 'BOSS' super user.
  * This ensures the application always has an administrator account on first run.
  */
-export const init = (): void => {
-    const users = getUsers();
+export const init = async (): Promise<void> => {
+    const users = await getUsers();
     if (users.length === 0) {
         const bossUser: User = {
             id: `user-${Date.now()}`,
@@ -33,7 +35,7 @@ export const init = (): void => {
             password: 'teste', // In a real app, this should be hashed.
             isBoss: true,
         };
-        saveUsers([bossUser]);
+        await saveUsers([bossUser]);
         console.log('BOSS user created.');
     }
 };
@@ -46,7 +48,7 @@ export const init = (): void => {
  * @throws {Error} If the username already exists.
  */
 export const register = async (username: string, password: string): Promise<User> => {
-    const users = getUsers();
+    const users = await getUsers();
     if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
         throw new Error('Username already exists.');
     }
@@ -55,7 +57,7 @@ export const register = async (username: string, password: string): Promise<User
         username,
         password, // Again, hashing is crucial in a real scenario.
     };
-    saveUsers([...users, newUser]);
+    await saveUsers([...users, newUser]);
     return newUser;
 };
 
@@ -67,7 +69,7 @@ export const register = async (username: string, password: string): Promise<User
  * @throws {Error} If credentials are invalid.
  */
 export const login = async (username: string, password: string): Promise<User> => {
-    const users = getUsers();
+    const users = await getUsers();
     const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
     if (!user) {
         throw new Error('Invalid username or password.');
@@ -79,8 +81,9 @@ export const login = async (username: string, password: string): Promise<User> =
 /**
  * Logs out the current user by clearing the session.
  */
-export const logout = (): void => {
+export const logout = async (): Promise<void> => {
     sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    return Promise.resolve();
 };
 
 /**
@@ -101,7 +104,7 @@ export const getCurrentUser = (): User | null => {
  * @throws {Error} If the new username is taken by another user.
  */
 export const updateUser = async (userId: string, newUsername: string, newPassword?: string): Promise<User> => {
-    const users = getUsers();
+    const users = await getUsers();
     const userIndex = users.findIndex(u => u.id === userId);
 
     if (userIndex === -1) {
@@ -120,7 +123,7 @@ export const updateUser = async (userId: string, newUsername: string, newPasswor
     }
 
     users[userIndex] = updatedUser;
-    saveUsers(users);
+    await saveUsers(users);
     
     // Update the session if the current user is the one being updated
     const currentUser = getCurrentUser();

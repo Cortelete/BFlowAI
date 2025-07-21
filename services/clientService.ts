@@ -4,22 +4,24 @@ import * as XLSX from 'xlsx';
 /**
  * Retrieves client data for a specific user from localStorage.
  * @param userId - The ID of the user whose clients to fetch.
- * @returns An array of Client objects. Returns an empty array if no data is found.
+ * @returns A promise that resolves to an array of Client objects.
  */
-export const getClients = (userId: string): Client[] => {
+export const getClients = async (userId: string): Promise<Client[]> => {
     const key = `beautyflow_clients_${userId}`;
     const clientsJson = localStorage.getItem(key);
-    return clientsJson ? JSON.parse(clientsJson) : [];
+    return Promise.resolve(clientsJson ? JSON.parse(clientsJson) : []);
 };
 
 /**
  * Saves client data for a specific user to localStorage.
  * @param userId - The ID of the user whose clients to save.
  * @param clients - The array of Client objects to save.
+ * @returns A promise that resolves when the data is saved.
  */
-export const saveClients = (userId: string, clients: Client[]): void => {
+export const saveClients = async (userId: string, clients: Client[]): Promise<void> => {
     const key = `beautyflow_clients_${userId}`;
     localStorage.setItem(key, JSON.stringify(clients));
+    return Promise.resolve();
 };
 
 /**

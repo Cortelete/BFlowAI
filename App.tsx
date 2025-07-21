@@ -5,33 +5,52 @@ import { getClients, saveClients } from './services/clientService';
 import { getProcedures, saveProcedures } from './services/procedureService';
 import * as AuthService from './services/authService';
 import type { Client, User, Procedure } from './types';
-//teste
+
 const App: React.FC = () => {
-    const [currentUser, setCurrentUser] = useState<User | null>(AuthService.getCurrentUser());
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [clients, setClients] = useState<Client[]>([]);
     const [procedures, setProcedures] = useState<Procedure[]>([]);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
     const [isLoading, setIsLoading] = useState(true);
     
+    // Initial data load effect
     useEffect(() => {
-        AuthService.init();
-        const user = AuthService.getCurrentUser();
-        if (user) {
-            setCurrentUser(user);
-            setClients(getClients(user.id));
-            setProcedures(getProcedures(user.id));
-        }
-        setIsLoading(false);
+        const loadInitialData = async () => {
+            await AuthService.init();
+            const user = AuthService.getCurrentUser();
+            if (user) {
+                setCurrentUser(user);
+                // Fetch data in parallel for efficiency
+                const [clientData, procedureData] = await Promise.all([
+                    getClients(user.id),
+                    getProcedures(user.id)
+                ]);
+                setClients(clientData);
+                setProcedures(procedureData);
+            }
+            setIsLoading(false);
+        };
+
+        loadInitialData();
     }, []);
 
+    // Effect to save clients when they change
     useEffect(() => {
-        if (currentUser) saveClients(currentUser.id, clients);
-    }, [clients, currentUser]);
+        // We don't save during the initial load to avoid overwriting anything.
+        // We also check for a current user to associate the data with.
+        if (!isLoading && currentUser) {
+            saveClients(currentUser.id, clients);
+        }
+    }, [clients, currentUser, isLoading]);
 
+    // Effect to save procedures when they change
     useEffect(() => {
-        if(currentUser) saveProcedures(currentUser.id, procedures);
-    }, [procedures, currentUser]);
+        if (!isLoading && currentUser) {
+            saveProcedures(currentUser.id, procedures);
+        }
+    }, [procedures, currentUser, isLoading]);
 
+    // Theme management effect
     useEffect(() => {
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');
@@ -43,15 +62,19 @@ const App: React.FC = () => {
 
     const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
 
-    const handleLoginSuccess = (user: User) => {
+    const handleLoginSuccess = async (user: User) => {
         setCurrentUser(user);
-        setClients(getClients(user.id));
-        setProcedures(getProcedures(user.id));
+        const [clientData, procedureData] = await Promise.all([
+            getClients(user.id),
+            getProcedures(user.id)
+        ]);
+        setClients(clientData);
+        setProcedures(procedureData);
         toast.success(`Bem-vindo(a) de volta, ${user.username}!`);
     };
 
-    const handleLogout = () => {
-        AuthService.logout();
+    const handleLogout = async () => {
+        await AuthService.logout();
         setCurrentUser(null);
         setClients([]);
         setProcedures([]);

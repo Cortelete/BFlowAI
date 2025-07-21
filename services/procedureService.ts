@@ -5,10 +5,10 @@ import type { Procedure } from '../types';
  * @param userId - The ID of the user whose procedures to fetch.
  * @returns An array of Procedure objects. Returns an empty array if no data is found.
  */
-export const getProcedures = (userId: string): Procedure[] => {
+export const getProcedures = async (userId: string): Promise<Procedure[]> => {
     const key = `beautyflow_procedures_${userId}`;
     const proceduresJson = localStorage.getItem(key);
-    return proceduresJson ? JSON.parse(proceduresJson) : [];
+    return Promise.resolve(proceduresJson ? JSON.parse(proceduresJson) : []);
 };
 
 /**
@@ -16,7 +16,8 @@ export const getProcedures = (userId: string): Procedure[] => {
  * @param userId - The ID of the user whose procedures to save.
  * @param procedures - The array of Procedure objects to save.
  */
-export const saveProcedures = (userId: string, procedures: Procedure[]): void => {
+export const saveProcedures = async (userId: string, procedures: Procedure[]): Promise<void> => {
     const key = `beautyflow_procedures_${userId}`;
     localStorage.setItem(key, JSON.stringify(procedures));
+    return Promise.resolve();
 };
