@@ -5,7 +5,7 @@ import { getClients, saveClients } from './services/clientService';
 import { getProcedures, saveProcedures } from './services/procedureService';
 import * as AuthService from './services/authService';
 import type { Client, User, Procedure } from './types';
-
+//teste
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(AuthService.getCurrentUser());
     const [clients, setClients] = useState<Client[]>([]);
