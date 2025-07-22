@@ -7,7 +7,7 @@ interface FinancialsProps {
 }
 
 const StatCard: React.FC<{ title: string; value: string; icon: string; color: string; }> = ({ title, value, icon, color }) => (
-  <div className={`bg-opacity-20 backdrop-blur-lg border border-opacity-30 p-6 rounded-2xl shadow-lg ${color}`}>
+  <div className={`bg-opacity-20 backdrop-blur-lg border border-opacity-30 p-6 rounded-2xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${color}`}>
     <div className="flex justify-between items-center">
         <div>
             <h3 className="text-lg font-semibold">{title}</h3>
@@ -103,9 +103,9 @@ export const Financials: React.FC<FinancialsProps> = ({ clients }) => {
         <h2 className="text-3xl font-bold font-serif text-gray-800 dark:text-white mb-6">Visão Financeira</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <StatCard title="Faturamento Total" value={totalRevenue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="dollar-sign" color="text-green-700 dark:text-green-300 border-green-500" />
-            <StatCard title="Custos Totais" value={totalCost.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="dollar-sign" color="text-red-700 dark:text-red-400 border-red-500" />
-            <StatCard title="Lucro Líquido" value={netProfit.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="dollar-sign" color="text-blue-700 dark:text-blue-300 border-blue-500" />
+            <StatCard title="Faturamento Total" value={totalRevenue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="dollar-sign" color="bg-green-500 text-green-700 dark:text-green-300 border-green-500" />
+            <StatCard title="Custos Totais" value={totalCost.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="dollar-sign" color="bg-red-500 text-red-700 dark:text-red-400 border-red-500" />
+            <StatCard title="Lucro Líquido" value={netProfit.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="dollar-sign" color="bg-blue-500 text-blue-700 dark:text-blue-300 border-blue-500" />
         </div>
 
         <RevenuePieChart data={revenueByProcedure} />
