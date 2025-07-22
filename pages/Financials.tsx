@@ -123,7 +123,7 @@ export const Financials: React.FC<FinancialsProps> = ({ clients }) => {
                 <tbody className="text-gray-700 dark:text-gray-200 text-sm">
                     {financialData.map((entry) => (
                         <tr key={entry.id} className="border-b border-gray-200/50 dark:border-gray-700/50 hover:bg-brand-purple-100/30 dark:hover:bg-brand-purple-700/30 transition-colors">
-                            <td className="py-4 px-6 whitespace-nowrap">{new Date(entry.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
+                            <td className="py-4 px-6 whitespace-nowrap">{new Date(entry.date).toLocaleDateString('pt-BR', {timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric'})}</td>
                             <td className="py-4 px-6 whitespace-nowrap font-medium">{entry.clientName}</td>
                             <td className="py-4 px-6 whitespace-nowrap">{entry.procedure}</td>
                             <td className="py-4 px-6 text-green-600 dark:text-green-400">{entry.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>

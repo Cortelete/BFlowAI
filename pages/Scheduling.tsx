@@ -126,7 +126,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
       <Modal
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
-        title={`Agenda para ${selectedDate.toLocaleDateString('pt-BR', {day: '2-digit', month: 'long'})}`}
+        title={`Agenda para ${selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
         maxWidth="max-w-lg"
       >
         <div className='max-h-96 overflow-y-auto pr-2'>

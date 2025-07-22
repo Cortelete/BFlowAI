@@ -91,11 +91,13 @@ const GenerationCard: React.FC<GenerationCardProps> = ({ title, description, cat
 
 const PersonalizedAction: React.FC<{ client: Client; actionType: 'birthday' | 'promo'; onGenerate: (client: Client, type: MessageCategory) => void; disabled: boolean }> = ({ client, actionType, onGenerate, disabled }) => {
     const isBirthday = actionType === 'birthday';
+    const birthDateDayMonth = isBirthday && client.birthDate ? client.birthDate.split('-').reverse().join('/') : '';
+
     return (
         <li className={`p-3 rounded-lg flex justify-between items-center transition hover:shadow-md ${isBirthday ? 'bg-yellow-100 dark:bg-yellow-500/20' : 'bg-purple-100 dark:bg-brand-purple-500/20'}`}>
             <div>
                 <p className="font-semibold">{client.name}</p>
-                <p className="text-sm opacity-70">{isBirthday ? `Aniversário em ${new Date(client.birthDate!).toLocaleDateString('pt-BR',{ timeZone: 'UTC' })}` : `Última visita há ${Math.floor((new Date().getTime() - new Date(client.appointments.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date).getTime()) / (1000 * 3600 * 24))} dias`}</p>
+                <p className="text-sm opacity-70">{isBirthday ? `Aniversário em ${birthDateDayMonth}` : `Última visita há ${Math.floor((new Date().getTime() - new Date(client.appointments.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date).getTime()) / (1000 * 3600 * 24))} dias`}</p>
             </div>
             <button onClick={() => onGenerate(client, isBirthday ? 'birthday' : 'promo')} disabled={disabled} className="bg-brand-pink-500 text-white font-bold text-xs py-1 px-3 rounded-lg shadow-md hover:bg-brand-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 Gerar
@@ -133,12 +135,24 @@ export const Communication: React.FC<{ clients: Client[], currentUser: User }> =
     const upcomingBirthdays = clients.filter(c => {
         if (!c.birthDate) return false;
         const now = new Date();
-        const birthDate = new Date(c.birthDate);
-        // Compare month and day, ignoring year, for the next 30 days
-        const birthDayThisYear = new Date(now.getFullYear(), birthDate.getMonth(), birthDate.getDate());
-        const diff = (birthDayThisYear.getTime() - now.getTime()) / (1000 * 3600 * 24);
-        return diff >= 0 && diff <= 30;
-    }).sort((a,b) => new Date(a.birthDate!).getMonth() - new Date(b.birthDate!).getMonth() || new Date(a.birthDate!).getDate() - new Date(b.birthDate!).getDate());
+        now.setHours(0, 0, 0, 0); // Normalize to start of today
+
+        // Parse YYYY-MM-DD manually to avoid timezone bugs with `new Date(string)`
+        const [_year, month, day] = c.birthDate.split('-').map(Number);
+        
+        const birthDateThisYear = new Date(now.getFullYear(), month - 1, day);
+
+        const diffDays = (birthDateThisYear.getTime() - now.getTime()) / (1000 * 3600 * 24);
+        
+        // Check for birthdays in the next 30 days
+        return diffDays >= 0 && diffDays <= 30;
+    }).sort((a, b) => {
+        const [_ay, am, ad] = a.birthDate!.split('-').map(Number);
+        const [_by, bm, bd] = b.birthDate!.split('-').map(Number);
+        // Compare month first, then day
+        if (am !== bm) return am - bm;
+        return ad - bd;
+    });
 
     const inactiveClients = clients.filter(c => {
          if (c.appointments.length === 0) return false; // Not considered inactive if they never came
@@ -165,18 +179,18 @@ export const Communication: React.FC<{ clients: Client[], currentUser: User }> =
                          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Ações Personalizadas</h3>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <h4 className="font-bold mb-2 flex justify-between items-center">
-                                    <span>🎉 Aniversariantes do Mês</span>
-                                    <span className="text-xs font-normal opacity-70">Uso: {birthdayLimiter.usage}/{MAX_GENERATIONS_PER_DAY}</span>
+                                <h4 className="font-bold mb-2">
+                                    🎉 Aniversariantes do Mês
+                                    <span className="text-sm font-normal ml-2 text-gray-500 dark:text-gray-400">({birthdayLimiter.usage}/{MAX_GENERATIONS_PER_DAY})</span>
                                 </h4>
                                 <ul className="space-y-2 h-48 overflow-y-auto pr-2">
                                     {upcomingBirthdays.length > 0 ? upcomingBirthdays.map(c => <PersonalizedAction key={c.id} client={c} actionType="birthday" onGenerate={handlePersonalizedGenerate} disabled={isGenerating || birthdayLimiter.isLimited} />) : <p className="text-sm italic opacity-70">Nenhum aniversário próximo.</p>}
                                 </ul>
                             </div>
                             <div>
-                                <h4 className="font-bold mb-2 flex justify-between items-center">
-                                    <span>💔 Clientes Inativos (60+ dias)</span>
-                                    <span className="text-xs font-normal opacity-70">Uso: {promoLimiter.usage}/{MAX_GENERATIONS_PER_DAY}</span>
+                                <h4 className="font-bold mb-2">
+                                    💔 Clientes Inativos (60+ dias)
+                                     <span className="text-sm font-normal ml-2 text-gray-500 dark:text-gray-400">({promoLimiter.usage}/{MAX_GENERATIONS_PER_DAY})</span>
                                 </h4>
                                  <ul className="space-y-2 h-48 overflow-y-auto pr-2">
                                     {inactiveClients.length > 0 ? inactiveClients.map(c => <PersonalizedAction key={c.id} client={c} actionType="promo" onGenerate={handlePersonalizedGenerate} disabled={isGenerating || promoLimiter.isLimited} />) : <p className="text-sm italic opacity-70">Nenhum cliente inativo.</p>}

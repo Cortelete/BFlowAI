@@ -111,7 +111,7 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
       if (client.appointments.length === 0) return { date: 'N/A', procedure: 'N/A' };
       const lastAppt = [...client.appointments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
       return {
-          date: new Date(lastAppt.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
+          date: new Date(lastAppt.date).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' }),
           procedure: lastAppt.procedure
       };
   }
@@ -194,7 +194,7 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
             <input type="email" placeholder="E-mail" value={newClient.email} onChange={e => setNewClient({...newClient, email: e.target.value})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-pink-300" />
             <div className="relative">
                 <label className="text-xs text-gray-500 dark:text-gray-400 absolute -top-2 left-2 bg-white dark:bg-gray-800 px-1">Data de Nascimento</label>
-                <input type="date" value={newClient.birthDate} onChange={e => setNewClient({...newClient, birthDate: e.target.value})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-pink-300" />
+                <input type="date" value={newClient.birthDate} max={new Date().toISOString().split("T")[0]} onChange={e => setNewClient({...newClient, birthDate: e.target.value})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-pink-300" />
             </div>
             <textarea placeholder="Dados da Anamnese (alergias, histórico, etc.)" value={newClient.anamnesis} onChange={e => setNewClient({...newClient, anamnesis: e.target.value})} rows={3} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-pink-300"></textarea>
             <button onClick={handleAddClient} className="w-full bg-brand-pink-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-brand-pink-700 transition-colors">Salvar Cliente</button>
@@ -207,7 +207,7 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
                 <p><strong>Nome:</strong> {selectedClient.name}</p>
                 <p><strong>Telefone:</strong> {selectedClient.phone}</p>
                 <p><strong>Email:</strong> {selectedClient.email || 'N/A'}</p>
-                 <p><strong>Nascimento:</strong> {selectedClient.birthDate ? new Date(selectedClient.birthDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'N/A'}</p>
+                 <p><strong>Nascimento:</strong> {selectedClient.birthDate ? selectedClient.birthDate.split('-').reverse().join('/') : 'N/A'}</p>
                 <p><strong>Anamnese:</strong> {selectedClient.anamnesis || 'N/A'}</p>
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
                     <h4 className="font-bold mb-2 text-lg">Histórico de Agendamentos</h4>
@@ -215,7 +215,7 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
                         {selectedClient.appointments.length > 0 ? [...selectedClient.appointments].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(appt => (
                             <div key={appt.id} className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-sm">
                                 <p><strong>Procedimento:</strong> {appt.procedure}</p>
-                                <p><strong>Data:</strong> {new Date(appt.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} | <strong>Valor:</strong> {appt.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                <p><strong>Data:</strong> {new Date(appt.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })} | <strong>Valor:</strong> {appt.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                             </div>
                         )) : <p className="text-sm italic">Nenhum agendamento registrado.</p>}
                     </div>
