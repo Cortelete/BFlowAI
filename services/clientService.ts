@@ -1,3 +1,4 @@
+
 import type { Client, Appointment, AnamnesisRecord } from '../types';
 import * as XLSX from 'xlsx';
 
@@ -23,6 +24,41 @@ const emptyAnamnesisRecord: AnamnesisRecord = {
     declaration: false,
 };
 
+export const createEmptyAppointment = (date?: string): Appointment => {
+    return {
+        id: `appt-${Date.now()}`,
+        procedureName: '',
+        category: '',
+        date: date || new Date().toISOString().split('T')[0],
+        startTime: '09:00',
+        endTime: '10:00',
+        professional: '',
+        generalNotes: '',
+        materials: [],
+        duration: 60,
+        technicalNotes: '',
+        value: 0,
+        discount: 0,
+        finalValue: 0,
+        paymentMethod: '',
+        status: 'Pendente',
+        cost: 0,
+        commission: 0,
+        media: [],
+        postProcedureInstructions: '',
+        requiresReturn: false,
+        consentSigned: false,
+        imageAuthSigned: false,
+        isActiveInCatalog: true,
+        clientSatisfaction: 0,
+        internalNotes: '',
+        // Legacy fields
+        procedure: '',
+        price: 0,
+        time: '09:00',
+    };
+};
+
 
 /**
  * Retrieves client data for a specific user from localStorage.
@@ -34,15 +70,36 @@ export const getClients = async (userId: string): Promise<Client[]> => {
     const clientsJson = localStorage.getItem(key);
     if (!clientsJson) return Promise.resolve([]);
 
-    // Hydrate clients with new anamnesis structure if they are old format
+    // Hydrate clients with new structures if they are old format
     const parsedClients = JSON.parse(clientsJson);
     const hydratedClients = parsedClients.map((client: any) => {
-        if (typeof client.anamnesis === 'string') {
-            return {
-                ...client,
-                anamnesis: { ...emptyAnamnesisRecord, professionalNotes: client.anamnesis }
-            };
+        // Hydrate anamnesis
+        if (typeof client.anamnesis === 'string' || !client.anamnesis.healthHistory) {
+             client.anamnesis = { ...emptyAnamnesisRecord, professionalNotes: client.anamnesis || '' }
         }
+        // Hydrate appointments
+        if(client.appointments && client.appointments.length > 0) {
+            client.appointments = client.appointments.map((appt: any) => {
+                if(!appt.procedureName) { // Old format detected
+                    const empty = createEmptyAppointment(appt.date);
+                    return {
+                        ...empty,
+                        id: appt.id,
+                        procedureName: appt.procedure,
+                        procedure: appt.procedure,
+                        value: appt.price,
+                        price: appt.price,
+                        cost: appt.cost,
+                        duration: appt.duration,
+                        status: appt.status,
+                        time: appt.time,
+                        startTime: appt.time,
+                    }
+                }
+                return appt;
+            });
+        }
+
         return client;
     });
 
@@ -96,16 +153,16 @@ export const importFromExcel = (file: File): Promise<Client[]> => {
                     const appointments: Appointment[] = [];
                     // If the row contains appointment-like data, create one.
                     if (lastVisitStr && lastProcedure) {
-                        appointments.push({
-                            id: `appt-import-${Date.now()}-${index}`,
-                            date: new Date(lastVisitStr).toISOString().split('T')[0],
-                            time: '12:00', // Default time for imported appointments
-                            procedure: lastProcedure,
-                            price: isNaN(price) ? 0 : price,
-                            cost: isNaN(cost) ? 0 : cost,
-                            duration: 60, // Default duration for imported appointments
-                            status: 'Pago', // Assume imported past appointments are paid
-                        });
+                        const newAppt = createEmptyAppointment(new Date(lastVisitStr).toISOString().split('T')[0]);
+                        newAppt.id = `appt-import-${Date.now()}-${index}`;
+                        newAppt.procedureName = lastProcedure;
+                        newAppt.procedure = lastProcedure;
+                        newAppt.value = isNaN(price) ? 0 : price;
+                        newAppt.price = isNaN(price) ? 0 : price;
+                        newAppt.finalValue = isNaN(price) ? 0 : price;
+                        newAppt.cost = isNaN(cost) ? 0 : cost;
+                        newAppt.status = 'Pago';
+                        appointments.push(newAppt);
                     }
                     
                     return {

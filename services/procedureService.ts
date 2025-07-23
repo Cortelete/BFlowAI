@@ -1,3 +1,4 @@
+
 import type { Procedure } from '../types';
 
 /**
@@ -8,7 +9,21 @@ import type { Procedure } from '../types';
 export const getProcedures = async (userId: string): Promise<Procedure[]> => {
     const key = `beautyflow_procedures_${userId}`;
     const proceduresJson = localStorage.getItem(key);
-    return Promise.resolve(proceduresJson ? JSON.parse(proceduresJson) : []);
+    
+    if (proceduresJson) {
+        const parsedProcedures: Procedure[] = JSON.parse(proceduresJson);
+        // Hydrate old data with new fields to prevent runtime errors
+        const hydratedProcedures = parsedProcedures.map(proc => ({
+            ...proc,
+            category: proc.category || 'Geral',
+            technicalDescription: proc.technicalDescription || '',
+            defaultPostProcedureInstructions: proc.defaultPostProcedureInstructions || '',
+            isActive: proc.isActive !== undefined ? proc.isActive : true,
+        }));
+        return Promise.resolve(hydratedProcedures);
+    }
+
+    return Promise.resolve([]);
 };
 
 /**

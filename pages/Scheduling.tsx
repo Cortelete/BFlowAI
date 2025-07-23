@@ -12,8 +12,35 @@ interface SchedulingProps {
   procedures: Procedure[];
 }
 
-const emptyAppointment: Omit<Appointment, 'id' | 'date'> = { 
-    procedure: '', price: 0, cost: 0, time: '', duration: 60, status: 'Pendente'
+const emptyAppointment: Omit<Appointment, 'id' | 'date'> = {
+    procedureName: '',
+    category: '',
+    startTime: '09:00',
+    endTime: '10:00',
+    professional: '',
+    generalNotes: '',
+    materials: [],
+    duration: 60,
+    technicalNotes: '',
+    value: 0,
+    discount: 0,
+    finalValue: 0,
+    paymentMethod: '',
+    status: 'Pendente',
+    cost: 0,
+    commission: 0,
+    media: [],
+    postProcedureInstructions: '',
+    requiresReturn: false,
+    consentSigned: false,
+    imageAuthSigned: false,
+    isActiveInCatalog: true,
+    clientSatisfaction: 0,
+    internalNotes: '',
+    // Legacy fields for compatibility.
+    procedure: '',
+    price: 0,
+    time: '09:00',
 };
 
 const StatusTag: React.FC<{ status: Appointment['status'] }> = ({ status }) => {
@@ -36,16 +63,18 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
   
   // Auto-fill price, cost, and duration when procedure changes
   useEffect(() => {
-    const selectedProc = procedures.find(p => p.name === newApptDetails.procedure);
+    const selectedProc = procedures.find(p => p.name === newApptDetails.procedureName);
     if (selectedProc) {
       setNewApptDetails(prev => ({ 
           ...prev, 
-          price: selectedProc.defaultPrice, 
+          procedure: selectedProc.name, // legacy
+          price: selectedProc.defaultPrice, // legacy
+          value: selectedProc.defaultPrice,
           cost: selectedProc.defaultCost,
           duration: selectedProc.defaultDuration
         }));
     }
-  }, [newApptDetails.procedure, procedures]);
+  }, [newApptDetails.procedureName, procedures]);
   
   const filteredClientsForSelect = useMemo(() => {
     if (!clientSearchTerm) return clients;
@@ -81,7 +110,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
 
     const occupiedSlots = new Set<number>();
     appointmentsForSelectedDay.forEach(appt => {
-        const [hour, minute] = appt.time.split(':').map(Number);
+        const [hour, minute] = (appt.startTime || appt.time).split(':').map(Number);
         const apptStartTime = hour * 60 + minute;
         const apptDuration = appt.duration;
         const numSlots = Math.ceil(apptDuration / interval);
@@ -123,15 +152,18 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
   }
 
   const handleSaveAppointment = () => {
-      if (!newApptClientId || !newApptDetails.procedure || !newApptDetails.time) {
+      if (!newApptClientId || !newApptDetails.procedureName || !newApptDetails.startTime) {
           toast.error("Cliente, Procedimento e Horário são obrigatórios.");
           return;
       }
       
+      const finalValue = (newApptDetails.value || 0) - (newApptDetails.discount || 0);
+
       const appointmentToAdd: Appointment = {
           id: `appt-${Date.now()}`,
           date: selectedDate.toISOString().split('T')[0],
-          ...newApptDetails
+          ...newApptDetails,
+          finalValue,
       };
 
       setClients(prevClients => 
@@ -207,9 +239,9 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
                     appointmentsForSelectedDay.map(appt => (
                         <div key={appt.id} className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg flex justify-between items-center text-sm">
                             <div className="flex items-center gap-3">
-                                {appt.time && <p className='font-bold text-brand-purple-700 dark:text-brand-purple-300'>{appt.time}</p>}
+                                {(appt.startTime || appt.time) && <p className='font-bold text-brand-purple-700 dark:text-brand-purple-300'>{appt.startTime || appt.time}</p>}
                                 <div>
-                                    <p className="font-semibold">{appt.procedure} ({appt.duration} min)</p>
+                                    <p className="font-semibold">{appt.procedureName || appt.procedure} ({appt.duration} min)</p>
                                     <p className="text-xs opacity-80">{appt.clientName}</p>
                                 </div>
                             </div>
@@ -234,14 +266,17 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
                         <option value="">Selecione um Cliente</option>
                         {filteredClientsForSelect.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
-                    <select value={newApptDetails.procedure} onChange={e => setNewApptDetails({...newApptDetails, procedure: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600">
+                    <select value={newApptDetails.procedureName} onChange={e => setNewApptDetails({...newApptDetails, procedureName: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600">
                         <option value="">Selecione um Procedimento</option>
                         {procedures.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
                     </select>
                     <div className="grid grid-cols-2 gap-3">
                       <select 
-                        value={newApptDetails.time || ''} 
-                        onChange={e => setNewApptDetails({...newApptDetails, time: e.target.value})}
+                        value={newApptDetails.startTime || ''} 
+                        onChange={e => {
+                            const newTime = e.target.value;
+                            setNewApptDetails({ ...newApptDetails, startTime: newTime, time: newTime });
+                          }}
                         disabled={availableTimeSlots.length === 0}
                         className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600 disabled:opacity-50"
                       >
@@ -259,7 +294,10 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
                       </select>
                     </div>
                      <div className="grid grid-cols-3 gap-3">
-                        <input type="number" placeholder="Preço (R$)" value={newApptDetails.price || ''} onChange={e => setNewApptDetails({...newApptDetails, price: parseFloat(e.target.value) || 0})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600" />
+                        <input type="number" placeholder="Preço (R$)" value={newApptDetails.value || ''} onChange={e => {
+                            const newValue = parseFloat(e.target.value) || 0;
+                            setNewApptDetails({...newApptDetails, value: newValue, price: newValue });
+                        }} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600" />
                         <input type="number" placeholder="Custo (R$)" value={newApptDetails.cost || ''} onChange={e => setNewApptDetails({...newApptDetails, cost: parseFloat(e.target.value) || 0})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600" />
                         <input type="number" placeholder="Duração (min)" value={newApptDetails.duration || ''} onChange={e => setNewApptDetails({...newApptDetails, duration: parseInt(e.target.value) || 0})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600" />
                     </div>

@@ -1,8 +1,10 @@
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import type { Client, Appointment, Procedure, AnamnesisRecord } from '../types';
-import { importFromExcel } from '../services/clientService';
+import type { Client, Appointment, Procedure, User, AnamnesisRecord, MaterialUsed, ProcedureImage } from '../types';
+import { importFromExcel, createEmptyAppointment } from '../services/clientService';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
+import { Icon } from '../components/Icons';
 
 // --- HELPER FUNCTIONS & CONSTANTS ---
 const emptyAnamnesisRecord: AnamnesisRecord = {
@@ -17,18 +19,31 @@ const emptyAnamnesisRecord: AnamnesisRecord = {
     careRoutine: { usesSunscreen: false, currentProducts: '' },
     professionalNotes: '', imageAuth: false, declaration: false
 };
-const emptyClient: Omit<Client, 'id' | 'appointments'> = { name: '', phone: '', email: '', birthDate: '', gender: 'Prefiro não dizer', cpf: '', photo: '', anamnesis: emptyAnamnesisRecord };
-const emptyAppointment: Omit<Appointment, 'id'> = { date: '', time: '', procedure: '', price: 0, cost: 0, duration: 60, status: 'Pendente' };
+const emptyClient: Omit<Client, 'id' | 'appointments'> = { name: '', phone: '', email: '', birthDate: '', gender: 'Prefiro não dizer', cpf: '', photo: '', anamnesis: emptyAnamnesisRecord, profession: '', howTheyMetUs: '' };
 type ClientStatus = 'Todos' | 'Ativos' | 'Inativos' | 'Aniversariantes';
+
+const InputField = ({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) => (
+    <div>
+        <label className="text-sm font-semibold text-gray-600 dark:text-gray-400 block mb-1">{label}</label>
+        <input {...props} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-transparent focus:ring-2 focus:ring-brand-pink-500" />
+    </div>
+);
+const TextAreaField = ({ label, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) => (
+    <div>
+        <label className="text-sm font-semibold text-gray-600 dark:text-gray-400 block mb-1">{label}</label>
+        <textarea {...props} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-transparent focus:ring-2 focus:ring-brand-pink-500" />
+    </div>
+);
 
 // --- PAGE COMPONENT ---
 interface ClientsProps {
     clients: Client[];
     setClients: React.Dispatch<React.SetStateAction<Client[]>>;
     procedures: Procedure[];
+    currentUser: User;
 }
 
-export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedures }) => {
+export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedures, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClientStatus>('Todos');
   const [isAddModalOpen, setAddModalOpen] = useState(false);
@@ -62,7 +77,9 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
         switch (statusFilter) {
           case 'Aniversariantes':
             if (!client.birthDate) return false;
-            const birthMonth = new Date(client.birthDate).getMonth();
+            const birthDate = new Date(client.birthDate);
+             // Adjust for timezone issues by only comparing month and day from UTC date
+            const birthMonth = birthDate.getUTCMonth();
             return birthMonth === currentMonth;
           case 'Ativos':
             return getClientStatus(client).text !== 'Inativo';
@@ -72,7 +89,7 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
           default:
             return true;
         }
-      });
+      }).sort((a, b) => a.name.localeCompare(b.name));
   }, [clients, searchTerm, statusFilter, getClientStatus]);
 
   const handleViewDetails = (client: Client) => {
@@ -166,181 +183,4 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
                                 <td className="py-4 px-6"><span className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${status.color}`}>{status.text}</span></td>
                                 <td className="py-4 px-6">{lastVisit}</td>
                                 <td className="py-4 px-6"><div className='flex gap-2 justify-start'>
-                                    <button onClick={() => handleViewDetails(client)} className="bg-brand-purple-500 text-white p-2 rounded-lg shadow hover:bg-brand-purple-700"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
-                                    <button onClick={() => handleDeleteClient(client.id)} className="bg-red-500 text-white p-2 rounded-lg shadow hover:bg-red-700"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                                </div></td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
-        </div>
-        {clients.length > 0 && filteredClients.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 mt-6">Nenhum cliente encontrado.</p>}
-        {clients.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 mt-6 p-8">Nenhum cliente cadastrado.</p>}
-      </div>
-
-      <Modal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} title="Adicionar Novo Cliente">
-        <div className="space-y-4">
-            <input type="text" placeholder="Nome Completo *" value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg" />
-            <input type="text" placeholder="Telefone *" value={newClient.phone} onChange={e => setNewClient({...newClient, phone: e.target.value})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg" />
-            <input type="email" placeholder="E-mail" value={newClient.email} onChange={e => setNewClient({...newClient, email: e.target.value})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg" />
-            <input type="date" value={newClient.birthDate} max={new Date().toISOString().split("T")[0]} onChange={e => setNewClient({...newClient, birthDate: e.target.value})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg" />
-            <button onClick={handleAddClient} className="w-full bg-brand-pink-500 text-white font-bold py-3 rounded-lg hover:bg-brand-pink-700">Salvar Cliente</button>
-        </div>
-      </Modal>
-
-      {isDetailsModalOpen && selectedClient && <ClientDetailsModal client={selectedClient} procedures={procedures} onClose={() => setDetailsModalOpen(false)} onSave={handleSaveClientDetails} setClients={setClients} />}
-    </div>
-  );
-};
-
-
-// --- DETAILS MODAL SUB-COMPONENT ---
-interface ClientDetailsModalProps {
-    client: Client;
-    procedures: Procedure[];
-    onClose: () => void;
-    onSave: (client: Client) => void;
-    setClients: React.Dispatch<React.SetStateAction<Client[]>>;
-}
-
-const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, procedures, onClose, onSave, setClients }) => {
-    const [editedClient, setEditedClient] = useState<Client>(JSON.parse(JSON.stringify(client)));
-    const [activeTab, setActiveTab] = useState<'info' | 'anamnesis' | 'history'>('info');
-    const [newAppointment, setNewAppointment] = useState<Omit<Appointment, 'id'>>(emptyAppointment);
-
-    useEffect(() => {
-        const selectedProc = procedures.find(p => p.name === newAppointment.procedure);
-        if (selectedProc) setNewAppointment(prev => ({ 
-            ...prev, 
-            price: selectedProc.defaultPrice, 
-            cost: selectedProc.defaultCost,
-            duration: selectedProc.defaultDuration
-        }));
-    }, [newAppointment.procedure, procedures]);
-
-    const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value, type } = e.target;
-        const checked = (e.target as HTMLInputElement).checked;
-        const keys = name.split('.'); // For nested objects like anamnesis.healthHistory.hypertension
-        
-        setEditedClient(prev => {
-            const newState = JSON.parse(JSON.stringify(prev));
-            let current = newState;
-            for (let i = 0; i < keys.length - 1; i++) {
-                current = current[keys[i]];
-            }
-            current[keys[keys.length - 1]] = type === 'checkbox' ? checked : value;
-            return newState;
-        });
-    };
-
-    const handleAddAppointment = () => {
-        if (!newAppointment.date || !newAppointment.procedure) return toast.error("Data e procedimento são obrigatórios.");
-        const appointmentToAdd: Appointment = { id: `appt-${Date.now()}`, ...newAppointment };
-        const updatedClient = { ...editedClient, appointments: [...editedClient.appointments, appointmentToAdd] };
-        setEditedClient(updatedClient);
-        setClients(prevClients => prevClients.map(c => c.id === client.id ? updatedClient : c));
-        setNewAppointment({ ...emptyAppointment, date: newAppointment.date });
-        toast.success(`Agendamento adicionado!`);
-    }
-
-    const clientKPIs = useMemo(() => {
-        const totalSpent = editedClient.appointments.reduce((sum, appt) => sum + appt.price, 0);
-        const totalVisits = editedClient.appointments.length;
-        const ticketMedium = totalVisits > 0 ? totalSpent / totalVisits : 0;
-        return { totalSpent, totalVisits, ticketMedium };
-    }, [editedClient.appointments]);
-    
-    const AnamnesisCheckbox = ({ name, label }: {name: string, label: string}) => {
-        const keys = name.split('.');
-        let value = editedClient.anamnesis as any;
-        keys.forEach(key => { value = value?.[key]; });
-        return (
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name={name} checked={!!value} onChange={handleFieldChange} className="form-checkbox h-4 w-4 text-brand-purple-500 rounded" />{label}</label>
-        );
-    }
-    
-    return (
-        <Modal isOpen={true} onClose={onClose} title="Detalhes do Cliente" maxWidth="max-w-4xl">
-            <div className="text-gray-700 dark:text-gray-300">
-                {/* Header with KPIs */}
-                <div className="grid grid-cols-3 gap-4 mb-4 text-center">
-                    <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg"><p className="text-xs uppercase font-semibold opacity-70">Total Gasto</p><p className="text-xl font-bold">{clientKPIs.totalSpent.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p></div>
-                    <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg"><p className="text-xs uppercase font-semibold opacity-70">Total de Visitas</p><p className="text-xl font-bold">{clientKPIs.totalVisits}</p></div>
-                    <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg"><p className="text-xs uppercase font-semibold opacity-70">Ticket Médio</p><p className="text-xl font-bold">{clientKPIs.ticketMedium.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p></div>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
-                    <button onClick={() => setActiveTab('info')} className={`px-4 py-2 font-semibold ${activeTab === 'info' ? 'border-b-2 border-brand-pink-500 text-brand-pink-500' : 'text-gray-500'}`}>Informações</button>
-                    <button onClick={() => setActiveTab('anamnesis')} className={`px-4 py-2 font-semibold ${activeTab === 'anamnesis' ? 'border-b-2 border-brand-pink-500 text-brand-pink-500' : 'text-gray-500'}`}>Anamnese</button>
-                    <button onClick={() => setActiveTab('history')} className={`px-4 py-2 font-semibold ${activeTab === 'history' ? 'border-b-2 border-brand-pink-500 text-brand-pink-500' : 'text-gray-500'}`}>Histórico</button>
-                </div>
-
-                {/* Tab Content */}
-                <div className="max-h-[60vh] overflow-y-auto p-1">
-                    {activeTab === 'info' && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" name="name" value={editedClient.name} onChange={handleFieldChange} placeholder="Nome Completo" className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"/>
-                        <input type="text" name="phone" value={editedClient.phone} onChange={handleFieldChange} placeholder="Telefone" className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"/>
-                        <input type="email" name="email" value={editedClient.email} onChange={handleFieldChange} placeholder="E-mail" className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"/>
-                        <input type="date" name="birthDate" value={editedClient.birthDate || ''} onChange={handleFieldChange} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"/>
-                        <input type="text" name="cpf" value={editedClient.cpf || ''} onChange={handleFieldChange} placeholder="CPF" className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"/>
-                        <select name="gender" value={editedClient.gender || ''} onChange={handleFieldChange} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"><option>Prefiro não dizer</option><option>Feminino</option><option>Masculino</option><option>Não Binário</option></select>
-                    </div>}
-                    
-                    {activeTab === 'anamnesis' && <div className="space-y-6">
-                        <fieldset className="p-4 border rounded-lg"><legend className="px-2 font-bold">Histórico de Saúde</legend><div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.hypertension" label="Hipertensão" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.diabetes" label="Diabetes" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.hormonalDisorders" label="Dist. Hormonais" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.epilepsy" label="Epilepsia" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.heartDisease" label="Doença Cardíaca" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.autoimmuneDisease" label="Doença Autoimune" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.respiratoryProblems" label="Probl. Respiratórios" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.cancer" label="Câncer" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.pacemaker" label="Marcapasso" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.skinDisease" label="Doença de Pele" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.keloids" label="Queloides" />
-                            <AnamnesisCheckbox name="anamnesis.healthHistory.hepatitis" label="Hepatite" />
-                        </div><textarea name="anamnesis.healthHistory.otherConditions" value={editedClient.anamnesis.healthHistory.otherConditions} onChange={handleFieldChange} placeholder="Outras condições..." rows={2} className="mt-3 w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"></textarea></fieldset>
-                        
-                        <fieldset className="p-4 border rounded-lg"><legend className="px-2 font-bold">Medicações</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                           <AnamnesisCheckbox name="anamnesis.medications.roaccutane" label="Usa/usou Roacutan?" />
-                           <AnamnesisCheckbox name="anamnesis.medications.contraceptive" label="Usa anticoncepcional?" />
-                           <textarea name="anamnesis.medications.currentMedications" value={editedClient.anamnesis.medications.currentMedications} onChange={handleFieldChange} placeholder="Medicações em uso..." rows={2} className="col-span-full mt-3 w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"></textarea>
-                        </div></fieldset>
-
-                        <fieldset className="p-4 border rounded-lg"><legend className="px-2 font-bold">Alergias</legend><div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                             <AnamnesisCheckbox name="anamnesis.allergies.alcohol" label="Álcool" /><AnamnesisCheckbox name="anamnesis.allergies.latex" label="Látex" /><AnamnesisCheckbox name="anamnesis.allergies.cosmetics" label="Cosméticos" /><AnamnesisCheckbox name="anamnesis.allergies.localAnesthetics" label="Anestésicos" /><AnamnesisCheckbox name="anamnesis.allergies.lashGlue" label="Cola de Cílios" /><AnamnesisCheckbox name="anamnesis.allergies.henna" label="Henna" />
-                        </div><textarea name="anamnesis.allergies.otherAllergies" value={editedClient.anamnesis.allergies.otherAllergies} onChange={handleFieldChange} placeholder="Outras alergias..." rows={2} className="mt-3 w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"></textarea></fieldset>
-
-                        <fieldset className="p-4 border rounded-lg"><legend className="px-2 font-bold">Autorizações</legend><div className="flex flex-col gap-3">
-                           <AnamnesisCheckbox name="anamnesis.imageAuth" label="Autorizo o uso de imagem (antes/depois) para portfólio." />
-                           <AnamnesisCheckbox name="anamnesis.declaration" label="Declaro que as informações são verdadeiras." />
-                        </div><textarea name="anamnesis.professionalNotes" value={editedClient.anamnesis.professionalNotes} onChange={handleFieldChange} placeholder="Notas da profissional..." rows={3} className="mt-3 w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"></textarea></fieldset>
-                    </div>}
-
-                    {activeTab === 'history' && <div className="space-y-4">
-                       <div className="space-y-2 max-h-40 overflow-y-auto pr-2">{editedClient.appointments.length > 0 ? [...editedClient.appointments].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(appt => (
-                            <div key={appt.id} className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-sm"><p><strong>{appt.procedure}</strong></p><p>{new Date(appt.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })} | {appt.duration} min | <strong>{appt.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong> ({appt.status})</p></div>
-                        )) : <p className="text-sm italic">Nenhum agendamento.</p>}</div>
-                        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4"><h4 className="font-bold mb-3 text-lg">Adicionar Agendamento</h4><div className="grid grid-cols-2 gap-3">
-                            <input type="date" value={newAppointment.date} onChange={e => setNewAppointment({...newAppointment, date: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded" />
-                            <input type="time" value={newAppointment.time} onChange={e => setNewAppointment({...newAppointment, time: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded" />
-                            <select value={newAppointment.procedure} onChange={e => setNewAppointment({...newAppointment, procedure: e.target.value})} className="col-span-2 w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"><option value="">Selecione um Procedimento</option>{procedures.map(proc => <option key={proc.id} value={proc.name}>{proc.name}</option>)}</select>
-                            <input type="number" placeholder="Preço" value={newAppointment.price || ''} onChange={e => setNewAppointment({...newAppointment, price: parseFloat(e.target.value) || 0})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded" />
-                            <input type="number" placeholder="Duração (min)" value={newAppointment.duration || ''} onChange={e => setNewAppointment({...newAppointment, duration: parseInt(e.target.value) || 0})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded" />
-                            <select value={newAppointment.status} onChange={e => setNewAppointment({...newAppointment, status: e.target.value as Appointment['status']})} className="col-span-2 w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"><option value="Pendente">Pendente</option><option value="Pago">Pago</option><option value="Atrasado">Atrasado</option></select>
-                            <button onClick={handleAddAppointment} className="col-span-2 w-full bg-brand-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-brand-purple-700">Adicionar</button>
-                        </div></div>
-                    </div>}
-                </div>
-                
-                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-                    <button onClick={() => { onSave(editedClient); onClose(); }} className="bg-brand-pink-500 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-brand-pink-700">Salvar Alterações</button>
-                </div>
-            </div>
-        </Modal>
-    );
-}
+                                    <button onClick={() => handleViewDetails(client)} className="bg-brand-purple-500 text-white p-2 rounded-lg shadow hover:bg-brand-purple-700"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 

@@ -1,3 +1,4 @@
+
 /**
  * Represents a registered user in the application.
  */
@@ -45,20 +46,80 @@ export interface User {
 }
 
 
+// --- START OF NEW APPOINTMENT/PROCEDURE RECORD TYPES ---
+
+export interface MaterialUsed {
+    id: string;
+    name: string;
+    quantity: string;
+    unit: string;
+    cost: number;
+}
+
+export interface ProcedureImage {
+    id: string;
+    url: string; // base64
+    type: 'Antes' | 'Depois' | 'Durante';
+    caption: string;
+}
+
 /**
- * Represents a single appointment for a client, including financial details.
+ * Represents a complete clinical record for a performed procedure.
+ * This replaces the previous simple Appointment interface.
  */
 export interface Appointment {
     id: string;
-    date: string; // Stored in 'YYYY-MM-DD' format.
-    time: string; // Stored in 'HH:MM' format.
-    procedure: string;
-    price: number;
-    cost: number;
-    duration: number; // Duration in minutes
+    
+    // Section 1: Dados Gerais
+    procedureName: string;
+    category: string;
+    date: string; // 'YYYY-MM-DD'
+    startTime: string; // 'HH:MM'
+    endTime: string; // 'HH:MM'
+    professional: string;
+    generalNotes: string;
+    
+    // Section 2: Materiais
+    materials: MaterialUsed[];
+    
+    // Section 3: Detalhes do Procedimento
+    duration: number; // in minutes, calculated from start/end time or manual
+    technicalNotes: string;
+    
+    // Section 4: Financeiro
+    value: number;
+    discount: number;
+    finalValue: number;
+    paymentMethod: 'Dinheiro' | 'Cartão Crédito/Débito' | 'Pix' | 'Transferência' | 'Cortesia' | 'Fidelidade' | '';
     status: 'Pago' | 'Pendente' | 'Atrasado';
-    paymentMethod?: string;
+    cost: number; // calculated from materials
+    commission: number; // in percentage or absolute value
+    
+    // Section 5: Imagens
+    media: ProcedureImage[];
+    
+    // Section 6: Anamnese (linked implicitly by being part of a Client)
+    
+    // Section 7: Pós-Atendimento
+    postProcedureInstructions: string;
+    requiresReturn: boolean;
+    returnDate?: string;
+    
+    // Section 8: Documentação & Configurações Internas
+    consentSigned: boolean;
+    imageAuthSigned: boolean;
+    isActiveInCatalog: boolean; 
+    
+    // Section 9: Avaliação
+    clientSatisfaction: number; // 0-5 stars
+    internalNotes: string;
+    
+    // Legacy fields for compatibility. `procedure` is now `procedureName`, `price` is `value`.
+    procedure: string;
+    price: number; 
+    time: string; // Replaced by startTime/endTime
 }
+
 
 /**
  * Represents a standalone business expense not tied to a specific appointment.
@@ -157,6 +218,8 @@ export interface Client {
     birthDate?: string;
     gender?: 'Feminino' | 'Masculino' | 'Não Binário' | 'Prefiro não dizer' | '';
     cpf?: string;
+    profession?: string;
+    howTheyMetUs?: string;
     tags?: string[];
     anamnesis: AnamnesisRecord;
     appointments: Appointment[];
@@ -170,9 +233,13 @@ export interface Client {
 export interface Procedure {
     id: string;
     name: string;
+    category: string;
     defaultPrice: number;
     defaultCost: number;
     defaultDuration: number; // Duration in minutes
+    technicalDescription: string;
+    defaultPostProcedureInstructions: string;
+    isActive: boolean;
 }
 
 /**

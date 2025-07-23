@@ -50,7 +50,7 @@ const AppRouter: React.FC<AppRouterProps> = (props) => {
                 {currentUser ? (
                     <Route element={<AppLayout currentUser={currentUser} handleLogout={handleLogout} toggleTheme={toggleTheme} theme={theme} />}>
                         <Route path="/" element={<Page title="Dashboard"><Dashboard clients={clients} isBoss={currentUser.isBoss || false} /></Page>} />
-                        <Route path="/clients" element={<Page title="Clientes"><Clients clients={clients} setClients={setClients} procedures={procedures} /></Page>} />
+                        <Route path="/clients" element={<Page title="Clientes"><Clients clients={clients} setClients={setClients} procedures={procedures} currentUser={currentUser} /></Page>} />
                         <Route path="/schedule" element={<Page title="Agenda"><Scheduling clients={clients} setClients={setClients} procedures={procedures} /></Page>} />
                         <Route path="/procedures" element={<Page title="Procedimentos"><Procedures procedures={procedures} setProcedures={setProcedures} currentUser={currentUser} /></Page>} />
                         <Route path="/communication" element={<Page title="Comunicação"><Communication clients={clients} currentUser={currentUser} /></Page>} />
