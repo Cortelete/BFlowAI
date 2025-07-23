@@ -20,6 +20,8 @@ const emptyAppointment: Omit<Appointment, 'id' | 'date'> = {
     professional: '',
     generalNotes: '',
     materials: [],
+    equipmentUsed: '',
+    procedureSteps: [],
     duration: 60,
     technicalNotes: '',
     value: 0,

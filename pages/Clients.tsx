@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect, useCallback, ChangeEvent } from 'react';
 import type { Client, Appointment, Procedure, User, AnamnesisRecord, MaterialUsed, ProcedureImage, ProcedureStep } from '../types';
 import { importFromExcel, createEmptyAppointment } from '../services/clientService';
@@ -21,6 +22,13 @@ const emptyAnamnesisRecord: AnamnesisRecord = {
 };
 const emptyClient: Omit<Client, 'id' | 'appointments'> = { name: '', phone: '', email: '', birthDate: '', gender: 'Prefiro não dizer', cpf: '', photo: '', profession: '', howTheyMetUs: '', aestheticGoals: '', usualProcedures: '', careFrequency: '', areasOfInterest: [], internalNotes: '', anamnesis: emptyAnamnesisRecord };
 type ClientStatus = 'Todos' | 'Ativos' | 'Inativos' | 'Aniversariantes';
+
+const getAvatarColor = (name: string) => {
+    const colors = ['bg-brand-pink-500', 'bg-brand-purple-500', 'bg-green-500', 'bg-blue-500', 'bg-yellow-500'];
+    const charCodeSum = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return colors[charCodeSum % colors.length];
+};
+
 
 // Reusable form components
 const InputField = ({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) => (
@@ -157,8 +165,9 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
   const getAvatar = (client: Client) => {
       if (client.photo) return <img src={client.photo} alt={client.name} className="w-10 h-10 rounded-full object-cover"/>;
       const initials = client.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      const colorClass = getAvatarColor(client.name);
       return (
-          <div className="w-10 h-10 rounded-full bg-brand-purple-500 text-white flex items-center justify-center font-bold text-sm">
+          <div className={`w-10 h-10 rounded-full ${colorClass} text-white flex items-center justify-center font-bold text-sm`}>
               {initials}
           </div>
       );
@@ -429,6 +438,15 @@ const AnamnesisForm: React.FC<{ anamnesis: AnamnesisRecord, onChange: (path: str
                             <TextAreaField label="Descrição da reação" value={anamnesis.aestheticHistory.lashExtensions.reactionDescription} onChange={handleValueChange('aestheticHistory.lashExtensions.reactionDescription')} className="col-span-2"/>
                              <CheckboxField label="Usa lentes de contato?" checked={anamnesis.aestheticHistory.lashExtensions.wearsContacts} onChange={handleCheckboxChange('aestheticHistory.lashExtensions.wearsContacts')} />
                             <CheckboxField label="Usa colírios?" checked={anamnesis.aestheticHistory.lashExtensions.usesEyeDrops} onChange={handleCheckboxChange('aestheticHistory.lashExtensions.usesEyeDrops')} />
+                        </div>
+                    </div>
+                     {/* Brows */}
+                    <div className="p-4 border rounded-lg">
+                        <h4 className="font-semibold">Design de Sobrancelhas</h4>
+                        <div className="grid grid-cols-2 gap-4 mt-2">
+                            <CheckboxField label="Já usou henna/tintura?" checked={anamnesis.aestheticHistory.browDesign.usedHenna} onChange={handleCheckboxChange('aestheticHistory.browDesign.usedHenna')} />
+                            <CheckboxField label="Possui falhas ou cicatrizes?" checked={anamnesis.aestheticHistory.browDesign.hasScars} onChange={handleCheckboxChange('aestheticHistory.browDesign.hasScars')} />
+                             <TextAreaField label="Reações alérgicas" value={anamnesis.aestheticHistory.browDesign.allergicReactions} onChange={handleValueChange('aestheticHistory.browDesign.allergicReactions')} className="col-span-2"/>
                         </div>
                     </div>
                      {/* Skin */}
