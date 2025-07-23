@@ -1,7 +1,6 @@
 
 
-
-import React, { useState, useMemo, useEffect, useCallback, ChangeEvent, KeyboardEvent } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, ChangeEvent } from 'react';
 import type { Client, Appointment, Procedure, User, AnamnesisRecord, MaterialUsed, ProcedureImage, ProcedureStep } from '../types';
 import { importFromExcel, createEmptyAppointment } from '../services/clientService';
 import toast from 'react-hot-toast';
@@ -21,7 +20,7 @@ const emptyAnamnesisRecord: AnamnesisRecord = {
     careRoutine: { usesSunscreen: false, currentProducts: '' },
     professionalNotes: '', imageAuth: false, declaration: false
 };
-const emptyClient: Omit<Client, 'id' | 'appointments'> = { name: '', phone: '', email: '', birthDate: '', gender: 'Prefiro não dizer', cpf: '', photo: '', profession: '', howTheyMetUs: '', aestheticGoals: '', usualProcedures: '', careFrequency: '', areasOfInterest: [], internalNotes: '', tags: [], anamnesis: emptyAnamnesisRecord };
+const emptyClient: Omit<Client, 'id' | 'appointments'> = { name: '', phone: '', email: '', birthDate: '', gender: 'Prefiro não dizer', cpf: '', photo: '', profession: '', howTheyMetUs: '', aestheticGoals: '', usualProcedures: '', careFrequency: '', areasOfInterest: [], internalNotes: '', anamnesis: emptyAnamnesisRecord };
 type ClientStatus = 'Todos' | 'Ativos' | 'Inativos' | 'Aniversariantes';
 
 const getAvatarColor = (name: string) => {
@@ -68,28 +67,6 @@ interface ClientsProps {
     currentUser: User;
 }
 
-const HighlightCard: React.FC<{ title: string; client?: Client, amount?: number; icon: string }> = ({ title, client, amount, icon }) => (
-    <div className="bg-gradient-to-br from-brand-purple-500 to-brand-pink-500 text-white p-6 rounded-2xl shadow-2xl flex flex-col justify-between h-full">
-        <div>
-            <div className="flex justify-between items-center">
-                <h3 className="font-bold text-lg">{title}</h3>
-                <Icon icon={icon} className="w-8 h-8 opacity-50" />
-            </div>
-        </div>
-        {client && amount ? (
-            <div className="mt-4 text-center">
-                 <img src={client.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(client.name)}&background=fff&color=8E44AD&size=128`} alt={client.name} className="w-16 h-16 rounded-full mx-auto object-cover border-2 border-white/50 mb-2" />
-                <p className="font-serif text-2xl font-bold">{client.name}</p>
-                <p className="text-sm opacity-90">Gastou {amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} este mês!</p>
-            </div>
-        ) : (
-             <div className="mt-4 text-center flex-grow flex items-center justify-center">
-                <p className="text-sm opacity-70">Nenhum dado este mês.</p>
-            </div>
-        )}
-    </div>
-);
-
 export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedures, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClientStatus>('Todos');
@@ -97,35 +74,6 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
   const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [newClient, setNewClient] = useState(emptyClient);
-
-  const clienteDoMes = useMemo(() => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const spendingByClient: { [id: string]: number } = {};
-
-    clients.forEach(client => {
-      const monthlySpend = client.appointments
-        .filter(appt => {
-          const apptDate = new Date(appt.date);
-          return apptDate.getMonth() === currentMonth && apptDate.getFullYear() === currentYear;
-        })
-        .reduce((sum, appt) => sum + appt.finalValue, 0);
-
-      if (monthlySpend > 0) {
-        spendingByClient[client.id] = monthlySpend;
-      }
-    });
-
-    if (Object.keys(spendingByClient).length === 0) return null;
-
-    const topClientId = Object.entries(spendingByClient).sort((a, b) => b[1] - a[1])[0][0];
-    return {
-      client: clients.find(c => c.id === topClientId)!,
-      amount: spendingByClient[topClientId]
-    };
-  }, [clients]);
-
 
   const getClientStatus = useCallback((client: Client): { text: string; color: string; } => {
     const today = new Date();
@@ -178,7 +126,7 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
         toast.error('Nome e Telefone são obrigatórios.');
         return;
     }
-    const clientToAdd: Client = { ...newClient, id: `client-${Date.now()}`, appointments: [], tags: newClient.tags || [] };
+    const clientToAdd: Client = { ...newClient, id: `client-${Date.now()}`, appointments: [] };
     setClients(prev => [clientToAdd, ...prev].sort((a, b) => a.name.localeCompare(b.name)));
     setNewClient(emptyClient);
     setAddModalOpen(false);
@@ -245,31 +193,21 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
   return (
     <div className="p-4 md:p-6">
       <div className="bg-white/10 dark:bg-black/20 backdrop-blur-sm p-6 rounded-xl shadow-lg">
-        <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold font-serif text-gray-800 dark:text-white">Gestão de Clientes (CRM)</h2>
-        </div>
+        <h2 className="text-3xl font-bold font-serif text-gray-800 dark:text-white mb-6">Gestão de Clientes (CRM)</h2>
         
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-            <div className="lg:col-span-3">
-                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-1/3 p-3 bg-white/20 dark:bg-black/30 border border-gray-300/50 dark:border-gray-600/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-pink-300 transition-all" />
-                    <div className="flex items-center gap-2 bg-white/20 dark:bg-black/30 p-1 rounded-full">
-                        {(['Todos', 'Ativos', 'Inativos', 'Aniversariantes'] as ClientStatus[]).map(p => (
-                        <button key={p} onClick={() => setStatusFilter(p)} className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${statusFilter === p ? 'bg-white dark:bg-gray-900 shadow text-brand-pink-500' : 'hover:bg-white/50 dark:hover:bg-black/50'}`}>{p}</button>
-                        ))}
-                    </div>
-                    <div className='flex gap-2'>
-                        <label htmlFor="excel-upload" className="w-full md:w-auto bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-all duration-300 transform hover:scale-105 cursor-pointer text-center">Importar</label>
-                        <input id="excel-upload" type="file" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleFileImport} />
-                        <button onClick={() => { setNewClient(emptyClient); setAddModalOpen(true); }} className="w-full md:w-auto bg-brand-pink-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-brand-pink-700 transition-all duration-300 transform hover:scale-105">Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div className="lg:col-span-1">
-                <HighlightCard title="👑 Cliente do Mês" client={clienteDoMes?.client} amount={clienteDoMes?.amount} icon="clients"/>
-            </div>
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+          <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-1/3 p-3 bg-white/20 dark:bg-black/30 border border-gray-300/50 dark:border-gray-600/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-pink-300 transition-all" />
+          <div className="flex items-center gap-2 bg-white/20 dark:bg-black/30 p-1 rounded-full">
+            {(['Todos', 'Ativos', 'Inativos', 'Aniversariantes'] as ClientStatus[]).map(p => (
+              <button key={p} onClick={() => setStatusFilter(p)} className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${statusFilter === p ? 'bg-white dark:bg-gray-900 shadow text-brand-pink-500' : 'hover:bg-white/50 dark:hover:bg-black/50'}`}>{p}</button>
+            ))}
+          </div>
+          <div className='flex gap-2'>
+            <label htmlFor="excel-upload" className="w-full md:w-auto bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-all duration-300 transform hover:scale-105 cursor-pointer text-center">Importar</label>
+            <input id="excel-upload" type="file" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleFileImport} />
+            <button onClick={() => { setNewClient(emptyClient); setAddModalOpen(true); }} className="w-full md:w-auto bg-brand-pink-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-brand-pink-700 transition-all duration-300 transform hover:scale-105">Adicionar</button>
+          </div>
         </div>
-
 
         <div className="overflow-x-auto rounded-lg shadow-md">
             <table className="min-w-full bg-white/50 dark:bg-gray-800/50">
@@ -280,10 +218,9 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
                     {filteredClients.length > 0 ? filteredClients.map(client => {
                         const status = getClientStatus(client);
                         const lastVisit = client.appointments.length > 0 ? new Date([...client.appointments].sort((a,b)=>new Date(b.date).getTime() - new Date(a.date).getTime())[0].date).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'N/A';
-                        const isClienteDoMes = clienteDoMes?.client.id === client.id;
                         return (
                             <tr key={client.id} className="border-b border-gray-200/50 dark:border-gray-700/50 hover:bg-brand-purple-100/30 dark:hover:bg-brand-purple-700/30 transition-colors">
-                                <td className="py-2 px-6"><div className="flex items-center gap-3"><div className="flex-shrink-0">{getAvatar(client)}</div><span>{client.name} {isClienteDoMes && '👑'}</span></div></td>
+                                <td className="py-2 px-6"><div className="flex items-center gap-3"><div className="flex-shrink-0">{getAvatar(client)}</div><span>{client.name}</span></div></td>
                                 <td className="py-4 px-6">{client.phone}</td>
                                 <td className="py-4 px-6"><span className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${status.color}`}>{status.text}</span></td>
                                 <td className="py-4 px-6">{lastVisit}</td>
@@ -362,7 +299,6 @@ interface ClientDetailsModalProps {
 const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, procedures, isOpen, onClose, onSave, onDelete, currentUser }) => {
     const [activeTab, setActiveTab] = useState<'info' | 'anamnesis' | 'history'>('info');
     const [editableClient, setEditableClient] = useState<Client>(client);
-    const [tagInput, setTagInput] = useState('');
 
     // Sync state if the client prop changes from the outside
     useEffect(() => {
@@ -390,20 +326,6 @@ const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, procedu
             return current;
         });
     };
-
-    const handleTagAdd = (e: KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && tagInput.trim() !== '') {
-            e.preventDefault();
-            const newTags = [...(editableClient.tags || []), tagInput.trim()];
-            setEditableClient(prev => ({ ...prev, tags: newTags}));
-            setTagInput('');
-        }
-    }
-
-    const handleTagRemove = (tagToRemove: string) => {
-        const newTags = (editableClient.tags || []).filter(t => t !== tagToRemove);
-        setEditableClient(prev => ({ ...prev, tags: newTags }));
-    }
     
     const handleSaveAndClose = () => {
         onSave(editableClient);
@@ -445,25 +367,6 @@ const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, procedu
                                 <InputField label="CPF" name="cpf" value={editableClient.cpf || ''} onChange={handleClientChange} />
                             </div>
                             <TextAreaField label="Observações Internas" name="internalNotes" value={editableClient.internalNotes || ''} onChange={handleClientChange} />
-                            <div>
-                                <label className="text-sm font-semibold text-gray-600 dark:text-gray-400 block mb-1">Tags</label>
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                    {(editableClient.tags || []).map(tag => (
-                                        <span key={tag} className="flex items-center gap-1 bg-brand-purple-100 dark:bg-brand-purple-800 text-brand-purple-800 dark:text-brand-purple-100 text-xs font-semibold px-2 py-1 rounded-full">
-                                            {tag}
-                                            <button onClick={() => handleTagRemove(tag)} className="text-red-500">×</button>
-                                        </span>
-                                    ))}
-                                </div>
-                                <input
-                                    type="text"
-                                    value={tagInput}
-                                    onChange={(e) => setTagInput(e.target.value)}
-                                    onKeyDown={handleTagAdd}
-                                    placeholder="Adicionar tag e pressionar Enter"
-                                    className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm"
-                                />
-                            </div>
                         </div>
                     )}
                     {activeTab === 'anamnesis' && <AnamnesisForm anamnesis={editableClient.anamnesis} onChange={handleAnamnesisChange} />}
@@ -478,32 +381,6 @@ const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, procedu
 const AnamnesisForm: React.FC<{ anamnesis: AnamnesisRecord, onChange: (path: string, value: any) => void }> = ({ anamnesis, onChange }) => {
     const handleCheckboxChange = (path: string) => (e: ChangeEvent<HTMLInputElement>) => onChange(path, e.target.checked);
     const handleValueChange = (path: string) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(path, e.target.value);
-
-    const anamnesisFieldLabels: { [key: string]: string } = {
-        // Health History
-        hypertension: 'Hipertensão (pressão alta)',
-        diabetes: 'Diabetes',
-        hormonalDisorders: 'Distúrbios hormonais',
-        epilepsy: 'Epilepsia ou convulsões',
-        heartDisease: 'Doenças cardíacas',
-        autoimmuneDisease: 'Doenças autoimunes',
-        respiratoryProblems: 'Problemas respiratórios',
-        respiratoryAllergies: 'Alergias respiratórias',
-        cancer: 'Câncer',
-        pacemaker: 'Uso de marcapasso',
-        skinDisease: 'Doenças de pele',
-        keloids: 'Queloides',
-        hepatitis: 'Hepatite A, B ou C',
-        hiv: 'HIV / AIDS',
-        // Allergies
-        alcohol: 'Álcool',
-        latex: 'Látex',
-        cosmetics: 'Produtos cosméticos',
-        localAnesthetics: 'Anestésicos locais',
-        lashGlue: 'Cola para cílios',
-        makeup: 'Maquiagem',
-        henna: 'Henna ou tintura',
-    };
     
     return (
         <div className="space-y-6">
@@ -513,7 +390,7 @@ const AnamnesisForm: React.FC<{ anamnesis: AnamnesisRecord, onChange: (path: str
                 <fieldset className="space-y-2 p-4 border rounded-lg">
                     <legend className="font-semibold text-lg mb-2">Histórico de Saúde</legend>
                     {Object.entries(anamnesis.healthHistory).filter(([key]) => key !== 'otherConditions').map(([key, value]) => (
-                        <CheckboxField key={key} label={anamnesisFieldLabels[key] || key} checked={value as boolean} onChange={handleCheckboxChange(`healthHistory.${key}`)} />
+                        <CheckboxField key={key} label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} checked={value as boolean} onChange={handleCheckboxChange(`healthHistory.${key}`)} />
                     ))}
                     <TextAreaField label="Outras Condições" value={anamnesis.healthHistory.otherConditions} onChange={handleValueChange('healthHistory.otherConditions')} />
                 </fieldset>
@@ -522,7 +399,7 @@ const AnamnesisForm: React.FC<{ anamnesis: AnamnesisRecord, onChange: (path: str
                 <fieldset className="space-y-2 p-4 border rounded-lg">
                     <legend className="font-semibold text-lg mb-2">Alergias</legend>
                      {Object.entries(anamnesis.allergies).filter(([key]) => key !== 'otherAllergies').map(([key, value]) => (
-                        <CheckboxField key={key} label={anamnesisFieldLabels[key] || key} checked={value as boolean} onChange={handleCheckboxChange(`allergies.${key}`)} />
+                        <CheckboxField key={key} label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} checked={value as boolean} onChange={handleCheckboxChange(`allergies.${key}`)} />
                     ))}
                     <TextAreaField label="Outras Alergias" value={anamnesis.allergies.otherAllergies} onChange={handleValueChange('allergies.otherAllergies')} />
                 </fieldset>

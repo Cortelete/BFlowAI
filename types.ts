@@ -294,28 +294,3 @@ export type MessageCategory = 'daily' | 'prospect' | 'promo' | 'birthday' | 'rem
 export interface EditableText {
     [key: string]: string;
 }
-
-// --- START: Viral Idea Generation ---
-export interface Trend {
-    title: string;
-    summary: string;
-    analysis: string;
-    formats: string[];
-}
-
-export interface CreativeIdea {
-    id: string;
-    title: string;
-    description: string;
-    format: string;
-    hashtags: string[];
-    caption: string;
-    emojis: string;
-    cta: string;
-}
-
-export interface ViralIdeaResponse {
-    trend: Trend;
-    creativeIdeas: CreativeIdea[];
-}
-// --- END: Viral Idea Generation ---

@@ -134,7 +134,6 @@ const AppLayout: React.FC<{ currentUser: User; handleLogout: () => void; toggleT
         { path: '/communication', label: 'Comunicação', icon: 'communication' },
         { path: '/financials', label: 'Financeiro', icon: 'dollar-sign' },
         { path: '/ideas', label: 'Ideias', icon: 'idea' },
-        { path: '/viral-idea', label: 'Ideia Viral', icon: 'rocket' },
     ];
     
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
