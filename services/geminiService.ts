@@ -1,31 +1,13 @@
 
+import { GoogleGenAI, Type } from "@google/genai";
+import type { MessageCategory, IdeaCategory, Client, ViralIdeaResponse } from '../types';
 
-import { GoogleGenAI } from "@google/genai";
-import type { MessageCategory, IdeaCategory, Client } from '../types';
+// IMPORTANT: This service now gets the API key from the environment.
+// The config.ts file is no longer used for the API key.
 
-// 1. Cria uma variável no escopo do módulo para armazenar em cache a instância do cliente de IA.
-let aiClient: GoogleGenAI | null = null;
-
-/**
- * Inicializa e retorna uma instância singleton do cliente GoogleGenAI.
- * Isso evita a criação de uma nova instância a cada chamada de API, melhorando a eficiência.
- * Lida com segurança com casos em que a chave da API pode estar ausente.
- * @returns {GoogleGenAI | null} O cliente inicializado ou nulo se a chave da API não estiver disponível.
- */
-const getAiClient = (): GoogleGenAI | null => {
-    // Se a chave da API não estiver disponível no ambiente, não faça nada.
-    if (!process.env.API_KEY) {
-        return null;
-    }
-
-    // Se o cliente ainda não foi criado, crie-o e armazene-o em cache.
-    if (!aiClient) {
-        aiClient = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    }
-    
-    return aiClient;
-};
-
+// No global AI initialization to prevent crashing if API_KEY is missing.
+// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+// const model = "gemini-2.5-flash";
 
 const getSystemInstruction = (category: MessageCategory | IdeaCategory | 'mascot' | 'dashboard', clientName?: string) => {
     let baseInstruction = "You are BeautyFlow AI, an expert AI assistant for 'Luxury Studio de Beleza Joyci Almeida', a high-end beauty studio in Brazil. Your tone is helpful, luxurious, and encouraging. Your responses should be in Brazilian Portuguese. ";
@@ -66,10 +48,9 @@ const getSystemInstruction = (category: MessageCategory | IdeaCategory | 'mascot
  * @returns The generated text content.
  */
 export const generateMarketingContent = async (category: MessageCategory, clientName?: string): Promise<string> => {
-    const ai = getAiClient();
-    if (!ai) return "A Chave da API não está configurada. As funções de IA estão desabilitadas.";
-    
+    if (!process.env.API_KEY) return "A Chave da API não está configurada. As funções de IA estão desabilitadas.";
     try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Please generate a message for the '${category}' category.`,
@@ -93,10 +74,9 @@ export const generateMarketingContent = async (category: MessageCategory, client
  * @returns The generated text content.
  */
 export const generateBusinessIdea = async (category: IdeaCategory): Promise<string> => {
-    const ai = getAiClient();
-    if (!ai) return "A Chave da API não está configurada. As funções de IA estão desabilitadas.";
-    
+    if (!process.env.API_KEY) return "A Chave da API não está configurada. As funções de IA estão desabilitadas.";
     try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Please generate an idea for the '${category}' category.`,
@@ -120,10 +100,9 @@ export const generateBusinessIdea = async (category: IdeaCategory): Promise<stri
  * @returns The generated text content.
  */
 export const generateMascotTip = async (): Promise<string> => {
-    const ai = getAiClient();
-    if (!ai) return "Olá! Para receber dicas da IA, configure sua Chave de API.";
-
+    if (!process.env.API_KEY) return "Olá! Para receber dicas da IA, configure sua Chave de API.";
     try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: "Generate a helpful tip.",
@@ -146,9 +125,7 @@ export const generateMascotTip = async (): Promise<string> => {
  * @returns The generated text content.
  */
 export const generateDashboardSuggestion = async (clients: Client[]): Promise<string> => {
-    const ai = getAiClient();
-    if (!ai) return "💡 Configure sua Chave de API para receber sugestões personalizadas!";
-    
+    if (!process.env.API_KEY) return "💡 Configure sua Chave de API para receber sugestões personalizadas!";
     if (clients.length === 0) return "Adicione seus primeiros clientes para receber sugestões personalizadas!";
     
     // Create a concise summary of client data for the AI
@@ -170,6 +147,7 @@ export const generateDashboardSuggestion = async (clients: Client[]): Promise<st
     const clientSummary = `Client data summary: Total clients: ${clients.length}. Inactive clients (60+ days): ${inactiveClients}. Clients with birthdays in the next 30 days: ${upcomingBirthdays}.`;
 
     try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Based on this summary, give me one great suggestion. Summary: ${clientSummary}`,
@@ -183,5 +161,85 @@ export const generateDashboardSuggestion = async (clients: Client[]): Promise<st
     } catch (error) {
         console.error("Error generating dashboard suggestion:", error);
         return "😕 Não foi possível gerar uma sugestão. Tente novamente.";
+    }
+};
+
+/**
+ * Generates viral content ideas for a given niche.
+ * @param niche - The user's area of business (e.g., 'lash extensions').
+ * @returns A structured object with a trend and creative ideas.
+ */
+export const generateViralIdea = async (niche: string): Promise<ViralIdeaResponse> => {
+    if (!process.env.API_KEY) {
+        throw new Error("A Chave da API não está configurada.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    const systemInstruction = `Você é um especialista em marketing viral para o Instagram, focado no mercado brasileiro. Sua tarefa é analisar o nicho de "${niche}" e identificar a principal tendência de conteúdo e gerar 3 ideias criativas.
+- Analise o que os 5 maiores influenciadores deste nicho estão fazendo.
+- Identifique padrões em formatos (Reels, Carrossel), temas (educacional, humor) e abordagens.
+- Para a tendência, explique por que está funcionando.
+- Para as ideias criativas, seja específico e prático, fornecendo título, descrição, formato, legenda, hashtags, emojis e CTA (Call to Action).
+- Responda em JSON estruturado, em português do Brasil.`;
+
+    const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+            trend: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING, description: "Título da tendência em alta." },
+                    summary: { type: Type.STRING, description: "Resumo do tipo de conteúdo que está funcionando." },
+                    analysis: { type: Type.STRING, description: "Análise objetiva do motivo pelo qual está funcionando." },
+                    formats: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Formatos de conteúdo (ex: 'Reels', 'Carrossel')." }
+                },
+                required: ["title", "summary", "analysis", "formats"]
+            },
+            creativeIdeas: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        id: { type: Type.STRING, description: "Um ID único para a ideia, pode ser um UUID ou timestamp."},
+                        title: { type: Type.STRING, description: "Título impactante para a ideia de conteúdo." },
+                        description: { type: Type.STRING, description: "Descrição detalhada da proposta de conteúdo." },
+                        format: { type: Type.STRING, description: "Formato sugerido (Reels, Carrossel, Story, etc.)." },
+                        hashtags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Lista de hashtags relevantes." },
+                        caption: { type: Type.STRING, description: "Sugestão de legenda para o post." },
+                        emojis: { type: Type.STRING, description: "Sugestão de emojis ideais para o post." },
+                        cta: { type: Type.STRING, description: "Call to Action recomendada (ex: 'Comente', 'Salve')." }
+                    },
+                    required: ["id", "title", "description", "format", "hashtags", "caption", "emojis", "cta"]
+                }
+            }
+        },
+        required: ["trend", "creativeIdeas"]
+    };
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `Gere uma tendência e 3 ideias de conteúdo viral para o nicho: ${niche}`,
+            config: {
+                systemInstruction,
+                responseMimeType: "application/json",
+                responseSchema,
+                temperature: 0.9
+            },
+        });
+        const jsonResponse = JSON.parse(response.text);
+        
+        // Ensure creative ideas have a unique ID if the model doesn't provide it
+        jsonResponse.creativeIdeas.forEach((idea: any) => {
+           if (!idea.id) {
+               idea.id = `idea-${Date.now()}-${Math.random()}`;
+           }
+        });
+
+        return jsonResponse as ViralIdeaResponse;
+    } catch (error) {
+        console.error("Error generating viral idea:", error);
+        throw new Error("Não foi possível gerar as ideias no momento. A IA pode estar sobrecarregada. Tente novamente.");
     }
 };

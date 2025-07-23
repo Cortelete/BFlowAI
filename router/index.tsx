@@ -11,6 +11,7 @@ import { Profile } from '../pages/Profile';
 import { Procedures } from '../pages/Procedures';
 import { Financials } from '../pages/Financials';
 import { Scheduling } from '../pages/Scheduling';
+import { ViralIdea } from '../pages/ViralIdea';
 import Page from '../components/Page';
 
 interface AppRouterProps {
@@ -56,6 +57,7 @@ const AppRouter: React.FC<AppRouterProps> = (props) => {
                         <Route path="/communication" element={<Page title="Comunicação"><Communication clients={clients} currentUser={currentUser} /></Page>} />
                         <Route path="/financials" element={<Page title="Financeiro"><Financials clients={clients} expenses={expenses} setExpenses={setExpenses} currentUser={currentUser} /></Page>} />
                         <Route path="/ideas" element={<Page title="Ideias"><Ideas currentUser={currentUser} /></Page>} />
+                        <Route path="/viral-idea" element={<Page title="Ideia Viral"><ViralIdea /></Page>} />
                         <Route path="/profile" element={<Page title="Perfil"><Profile user={currentUser} onUserUpdate={handleUserUpdate} /></Page>} />
                         <Route path="*" element={<Navigate to="/" />} />
                     </Route>
