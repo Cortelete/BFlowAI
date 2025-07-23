@@ -1,7 +1,8 @@
 
 
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Client, Appointment, Procedure } from '../types';
+import { useNavigate } from 'react-router-dom';
+import type { Client, Appointment, Procedure, User } from '../types';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
 import { Icon } from '../components/Icons';
@@ -10,6 +11,7 @@ interface SchedulingProps {
   clients: Client[];
   setClients: React.Dispatch<React.SetStateAction<Client[]>>;
   procedures: Procedure[];
+  currentUser: User;
 }
 
 const emptyAppointment: Omit<Appointment, 'id' | 'date'> = {
@@ -57,14 +59,18 @@ const StatusTag: React.FC<{ status: Appointment['status'] }> = ({ status }) => {
     return <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusStyles[status]}`}>{status}</span>;
 };
 
-export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, procedures }) => {
+export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, procedures, currentUser }) => {
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [newApptClientId, setNewApptClientId] = useState<string>('');
   const [newApptDetails, setNewApptDetails] = useState(emptyAppointment);
+  
+  const professionalRoles: User['userType'][] = ['Administrador', 'Funcionário', 'Profissional Lash'];
+  const canAttend = currentUser && professionalRoles.includes(currentUser.userType);
   
   // Auto-fill price, cost, and duration when procedure changes
   useEffect(() => {
@@ -89,7 +95,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
   const allAppointments = useMemo(() => {
     return clients
       .flatMap(client => client.appointments.map(appt => ({ ...appt, clientName: client.name, clientId: client.id })))
-      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      .sort((a, b) => (a.startTime || a.time || '').localeCompare(b.startTime || b.time || ''));
   }, [clients]);
 
   const appointmentsByDay = useMemo(() => {
@@ -242,15 +248,24 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
                 <h4 className='font-bold text-lg'>Agendamentos do Dia</h4>
                 {appointmentsForSelectedDay.length > 0 ? (
                     appointmentsForSelectedDay.map(appt => (
-                        <div key={appt.id} className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg flex justify-between items-center text-sm">
+                        <div key={appt.id} className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm gap-2">
                             <div className="flex items-center gap-3">
                                 {(appt.startTime || appt.time) && <p className='font-bold text-brand-purple-700 dark:text-brand-purple-300'>{appt.startTime || appt.time}</p>}
                                 <div>
-                                    <p className="font-semibold">{appt.procedureName || appt.procedure} ({appt.duration} min)</p>
+                                    <p className="font-semibold">{appt.procedureName || appt.procedure}</p>
                                     <p className="text-xs opacity-80">{appt.clientName}</p>
                                 </div>
                             </div>
-                            <StatusTag status={appt.status} />
+                            <div className="flex items-center gap-2 self-end sm:self-center">
+                                <StatusTag status={appt.status} />
+                                {canAttend && (
+                                    <button
+                                        onClick={() => navigate(`/session/${appt.clientId}/${appt.id}`)}
+                                        className="bg-brand-pink-500 text-white font-bold text-xs py-1 px-3 rounded-lg shadow-md hover:bg-brand-pink-700 transition-all">
+                                        ATENDER
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     ))
                 ) : (
