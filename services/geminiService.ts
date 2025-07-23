@@ -1,13 +1,10 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import type { MessageCategory, IdeaCategory, Client, ViralIdeaResponse } from '../types';
+import { toast } from 'react-hot-toast';
 
 // IMPORTANT: This service now gets the API key from the environment.
 // The config.ts file is no longer used for the API key.
-
-// No global AI initialization to prevent crashing if API_KEY is missing.
-// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-// const model = "gemini-2.5-flash";
 
 const getSystemInstruction = (category: MessageCategory | IdeaCategory | 'mascot' | 'dashboard', clientName?: string) => {
     let baseInstruction = "You are BeautyFlow AI, an expert AI assistant for 'Luxury Studio de Beleza Joyci Almeida', a high-end beauty studio in Brazil. Your tone is helpful, luxurious, and encouraging. Your responses should be in Brazilian Portuguese. ";
@@ -48,7 +45,10 @@ const getSystemInstruction = (category: MessageCategory | IdeaCategory | 'mascot
  * @returns The generated text content.
  */
 export const generateMarketingContent = async (category: MessageCategory, clientName?: string): Promise<string> => {
-    if (!process.env.API_KEY) return "A Chave da API não está configurada. As funções de IA estão desabilitadas.";
+    if (!process.env.API_KEY) {
+        toast.error("A Chave da API não está configurada. As funções de IA estão desabilitadas.");
+        return "IA desabilitada. Configure a chave de API.";
+    }
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
@@ -74,7 +74,10 @@ export const generateMarketingContent = async (category: MessageCategory, client
  * @returns The generated text content.
  */
 export const generateBusinessIdea = async (category: IdeaCategory): Promise<string> => {
-    if (!process.env.API_KEY) return "A Chave da API não está configurada. As funções de IA estão desabilitadas.";
+    if (!process.env.API_KEY) {
+        toast.error("A Chave da API não está configurada. As funções de IA estão desabilitadas.");
+        return "IA desabilitada. Configure a chave de API.";
+    }
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
@@ -100,7 +103,7 @@ export const generateBusinessIdea = async (category: IdeaCategory): Promise<stri
  * @returns The generated text content.
  */
 export const generateMascotTip = async (): Promise<string> => {
-    if (!process.env.API_KEY) return "Olá! Para receber dicas da IA, configure sua Chave de API.";
+    if (!process.env.API_KEY) return "Olá! Configure sua Chave de API para receber minhas dicas.";
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
@@ -171,7 +174,7 @@ export const generateDashboardSuggestion = async (clients: Client[]): Promise<st
  */
 export const generateViralIdea = async (niche: string): Promise<ViralIdeaResponse> => {
     if (!process.env.API_KEY) {
-        throw new Error("A Chave da API não está configurada.");
+        throw new Error("A Chave da API não está configurada nas variáveis de ambiente da Vercel.");
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
