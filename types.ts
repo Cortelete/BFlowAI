@@ -54,8 +54,6 @@ export interface MaterialUsed {
     quantity: string;
     unit: string;
     cost: number;
-    lotNumber?: string;
-    expirationDate?: string;
 }
 
 export interface ProcedureImage {
@@ -91,11 +89,7 @@ export interface Appointment {
     materials: MaterialUsed[];
     equipmentUsed: string;
     procedureSteps: ProcedureStep[];
-    technique: string;
-    difficulty: 'Fácil' | 'Médio' | 'Difícil' | '';
-    reactionDescription: string;
     technicalNotes: string;
-    tags: string[];
     
     // Section 3: Financeiro
     value: number;
