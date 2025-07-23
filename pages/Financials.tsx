@@ -18,16 +18,13 @@ type TypeFilter = 'all' | 'Receita' | 'Despesa';
 
 
 const KpiCard: React.FC<{ title: string; value: string; icon: string; color: string; }> = ({ title, value, icon, color }) => (
-  <div className={`relative overflow-hidden bg-white/10 dark:bg-black/20 backdrop-blur-lg border border-white/20 dark:border-black/30 p-5 rounded-2xl shadow-lg transition-all duration-300 group hover:shadow-2xl hover:-translate-y-1 ${color}`}>
-     <div className={`absolute -top-4 -right-4 w-24 h-24 rounded-full opacity-10 group-hover:opacity-20 group-hover:scale-125 transition-all duration-500 ${color.replace('text-', 'bg-').replace('-300', '-500')}`}></div>
-    <div className="flex justify-between items-center">
-        <div>
-            <p className="text-sm font-semibold uppercase opacity-80">{title}</p>
-            <p className="text-3xl font-bold font-serif">{value}</p>
-        </div>
-        <div className="text-4xl opacity-50">
-            <Icon icon={icon} />
-        </div>
+  <div className={`bg-opacity-20 backdrop-blur-lg border border-opacity-30 p-5 rounded-2xl shadow-lg flex items-center justify-between transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${color}`}>
+    <div>
+        <p className="text-sm font-semibold uppercase opacity-80">{title}</p>
+        <p className="text-3xl font-bold font-serif">{value}</p>
+    </div>
+    <div className="text-4xl opacity-50">
+        <Icon icon={icon} />
     </div>
   </div>
 );
@@ -194,12 +191,12 @@ export const Financials: React.FC<FinancialsProps> = ({ clients, expenses, setEx
 
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-            <KpiCard title="Faturamento" value={totalRevenue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="dollar-sign" color="text-green-500" />
-            <KpiCard title="Despesas" value={totalExpenses.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="receipt" color="text-red-500" />
-            <KpiCard title="Lucro Líquido" value={netProfit.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="pie-chart" color="text-blue-500" />
-            <KpiCard title="Ticket Médio" value={ticketMedium.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="trending-up" color="text-brand-purple-500" />
-            <KpiCard title="Pendentes" value={pendingAmount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="wallet" color="text-yellow-500" />
-            <KpiCard title="Transações" value={transactionCount.toString()} icon="list" color="text-gray-500" />
+            <KpiCard title="Faturamento" value={totalRevenue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="dollar-sign" color="bg-green-500 text-green-700 dark:text-green-300 border-green-500" />
+            <KpiCard title="Despesas" value={totalExpenses.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="receipt" color="bg-red-500 text-red-700 dark:text-red-300 border-red-500" />
+            <KpiCard title="Lucro Líquido" value={netProfit.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="pie-chart" color="bg-blue-500 text-blue-700 dark:text-blue-300 border-blue-500" />
+            <KpiCard title="Ticket Médio" value={ticketMedium.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="trending-up" color="bg-brand-purple-500 text-brand-purple-700 dark:text-brand-purple-300 border-brand-purple-500" />
+            <KpiCard title="Pendentes" value={pendingAmount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} icon="wallet" color="bg-yellow-500 text-yellow-700 dark:text-yellow-300 border-yellow-500" />
+            <KpiCard title="Transações" value={transactionCount.toString()} icon="list" color="bg-gray-500 text-gray-700 dark:text-gray-300 border-gray-500" />
         </div>
         
         {/* Charts */}
