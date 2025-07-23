@@ -10,21 +10,22 @@ interface ClientsProps {
     procedures: Procedure[];
 }
 
+const emptyAppointment: Omit<Appointment, 'id'> = { date: '', time: '', procedure: '', price: 0, cost: 0, status: 'Pendente' };
+
 export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedures }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [newClient, setNewClient] = useState<Omit<Client, 'id' | 'appointments'>>({ name: '', phone: '', email: '', anamnesis: '', birthDate: ''});
-  const [newAppointment, setNewAppointment] = useState<Omit<Appointment, 'id'>>({ date: '', procedure: '', price: 0, cost: 0 });
+  const [newAppointment, setNewAppointment] = useState<Omit<Appointment, 'id'>>(emptyAppointment);
 
   useEffect(() => {
       // When a procedure is selected from dropdown, auto-fill price and cost
       const selectedProc = procedures.find(p => p.name === newAppointment.procedure);
       if (selectedProc) {
           setNewAppointment(prev => ({...prev, price: selectedProc.defaultPrice, cost: selectedProc.defaultCost }));
-      } else {
-          // If a custom procedure is somehow entered, reset price/cost
+      } else if (newAppointment.procedure) { // Only reset if a custom procedure is typed
           setNewAppointment(prev => ({...prev, price: 0, cost: 0 }));
       }
   }, [newAppointment.procedure, procedures]);
@@ -40,7 +41,7 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
 
   const handleViewDetails = (client: Client) => {
     setSelectedClient(client);
-    setNewAppointment({ date: '', procedure: '', price: 0, cost: 0 }); // Reset form on open
+    setNewAppointment({ ...emptyAppointment, date: '' }); // Reset form on open
     setDetailsModalOpen(true);
   };
 
@@ -84,7 +85,7 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
     );
     setClients(updatedClients);
     setSelectedClient(prev => prev ? { ...prev, appointments: [...prev.appointments, appointmentToAdd] } : null);
-    setNewAppointment({ date: '', procedure: '', price: 0, cost: 0 });
+    setNewAppointment({ ...emptyAppointment, date: newAppointment.date }); // Reset form but keep date
     toast.success(`Agendamento para ${selectedClient.name} adicionado!`);
   }
 
@@ -223,13 +224,20 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
                     <h4 className="font-bold mb-3 text-lg">Adicionar Novo Agendamento</h4>
                     <div className="grid grid-cols-2 gap-3">
-                        <input type="date" value={newAppointment.date} onChange={e => setNewAppointment({...newAppointment, date: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 col-span-2" />
+                        <input type="date" value={newAppointment.date} onChange={e => setNewAppointment({...newAppointment, date: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600" />
+                        <input type="time" value={newAppointment.time} onChange={e => setNewAppointment({...newAppointment, time: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600" />
+
                         <select value={newAppointment.procedure} onChange={e => setNewAppointment({...newAppointment, procedure: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 col-span-2">
                             <option value="">Selecione um Procedimento</option>
                             {procedures.map(proc => <option key={proc.id} value={proc.name}>{proc.name}</option>)}
                         </select>
                         <input type="number" placeholder="Preço (R$)" value={newAppointment.price || ''} onChange={e => setNewAppointment({...newAppointment, price: parseFloat(e.target.value) || 0})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600" />
                         <input type="number" placeholder="Custo (R$)" value={newAppointment.cost || ''} onChange={e => setNewAppointment({...newAppointment, cost: parseFloat(e.target.value) || 0})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600" />
+                        <select value={newAppointment.status} onChange={e => setNewAppointment({...newAppointment, status: e.target.value as Appointment['status']})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 col-span-2">
+                           <option value="Pendente">Pendente</option>
+                           <option value="Pago">Pago</option>
+                           <option value="Atrasado">Atrasado</option>
+                        </select>
                         <button onClick={handleAddAppointment} className="col-span-2 w-full bg-brand-purple-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-brand-purple-700 transition-colors">Adicionar Agendamento</button>
                     </div>
                  </div>

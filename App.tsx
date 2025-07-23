@@ -3,13 +3,15 @@ import { Toaster, toast } from 'react-hot-toast';
 import AppRouter from './router';
 import { getClients, saveClients } from './services/clientService';
 import { getProcedures, saveProcedures } from './services/procedureService';
+import { getExpenses, saveExpenses } from './services/financialService';
 import * as AuthService from './services/authService';
-import type { Client, User, Procedure } from './types';
+import type { Client, User, Procedure, Expense } from './types';
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [clients, setClients] = useState<Client[]>([]);
     const [procedures, setProcedures] = useState<Procedure[]>([]);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
     const [isLoading, setIsLoading] = useState(true);
     
@@ -21,12 +23,14 @@ const App: React.FC = () => {
             if (user) {
                 setCurrentUser(user);
                 // Fetch data in parallel for efficiency
-                const [clientData, procedureData] = await Promise.all([
+                const [clientData, procedureData, expenseData] = await Promise.all([
                     getClients(user.id),
-                    getProcedures(user.id)
+                    getProcedures(user.id),
+                    getExpenses(user.id)
                 ]);
                 setClients(clientData);
                 setProcedures(procedureData);
+                setExpenses(expenseData);
             }
             setIsLoading(false);
         };
@@ -36,8 +40,6 @@ const App: React.FC = () => {
 
     // Effect to save clients when they change
     useEffect(() => {
-        // We don't save during the initial load to avoid overwriting anything.
-        // We also check for a current user to associate the data with.
         if (!isLoading && currentUser) {
             saveClients(currentUser.id, clients);
         }
@@ -49,6 +51,13 @@ const App: React.FC = () => {
             saveProcedures(currentUser.id, procedures);
         }
     }, [procedures, currentUser, isLoading]);
+
+    // Effect to save expenses when they change
+    useEffect(() => {
+        if (!isLoading && currentUser) {
+            saveExpenses(currentUser.id, expenses);
+        }
+    }, [expenses, currentUser, isLoading]);
 
     // Theme management effect
     useEffect(() => {
@@ -64,12 +73,14 @@ const App: React.FC = () => {
 
     const handleLoginSuccess = async (user: User) => {
         setCurrentUser(user);
-        const [clientData, procedureData] = await Promise.all([
+        const [clientData, procedureData, expenseData] = await Promise.all([
             getClients(user.id),
-            getProcedures(user.id)
+            getProcedures(user.id),
+            getExpenses(user.id)
         ]);
         setClients(clientData);
         setProcedures(procedureData);
+        setExpenses(expenseData);
         toast.success(`Bem-vindo(a) de volta, ${user.username}!`);
     };
 
@@ -78,6 +89,7 @@ const App: React.FC = () => {
         setCurrentUser(null);
         setClients([]);
         setProcedures([]);
+        setExpenses([]);
         toast.success('Você saiu com sucesso!');
     };
     
@@ -96,6 +108,8 @@ const App: React.FC = () => {
                 setClients={setClients}
                 procedures={procedures}
                 setProcedures={setProcedures}
+                expenses={expenses}
+                setExpenses={setExpenses}
                 theme={theme}
                 toggleTheme={toggleTheme}
                 handleLoginSuccess={handleLoginSuccess}

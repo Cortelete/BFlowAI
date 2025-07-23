@@ -63,9 +63,11 @@ export const importFromExcel = (file: File): Promise<Client[]> => {
                         appointments.push({
                             id: `appt-import-${Date.now()}-${index}`,
                             date: new Date(lastVisitStr).toISOString().split('T')[0],
+                            time: '12:00', // Default time for imported appointments
                             procedure: lastProcedure,
                             price: isNaN(price) ? 0 : price,
                             cost: isNaN(cost) ? 0 : cost,
+                            status: 'Pago', // Assume imported past appointments are paid
                         });
                     }
                     

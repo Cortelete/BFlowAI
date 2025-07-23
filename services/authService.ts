@@ -3,6 +3,37 @@ import type { User } from '../types';
 const USERS_STORAGE_KEY = 'beautyflow_users';
 const SESSION_STORAGE_KEY = 'beautyflow_session';
 
+const defaultUserFields: Omit<User, 'id' | 'username' | 'password' | 'isBoss'> = {
+    photo: '',
+    fullName: '',
+    displayName: '',
+    userType: 'Cliente',
+    gender: 'Prefiro não dizer',
+    birthDate: '',
+    cpf: '',
+    rg: '',
+    email: '',
+    altEmail: '',
+    phone: '',
+    fixedPhone: '',
+    whatsapp: '',
+    instagram: '',
+    facebook: '',
+    linkedin: '',
+    tiktok: '',
+    cep: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    country: 'Brasil',
+    role: '',
+    specialty: '',
+    bio: '',
+};
+
 /**
  * Retrieves all users from localStorage.
  * @returns {Promise<User[]>} A promise that resolves to an array of user objects.
@@ -23,20 +54,49 @@ const saveUsers = async (users: User[]): Promise<void> => {
 };
 
 /**
- * Initializes the user database. If no users exist, it creates the 'BOSS' super user.
- * This ensures the application always has an administrator account on first run.
+ * Initializes the user database. If no users exist, it creates the 'BOSS' super user and other sample users.
+ * This ensures the application always has accounts on first run.
  */
 export const init = async (): Promise<void> => {
-    const users = await getUsers();
+    let users = await getUsers();
     if (users.length === 0) {
         const bossUser: User = {
-            id: `user-${Date.now()}`,
+            ...defaultUserFields,
+            id: `user-boss-joyci`,
             username: 'BOSS',
             password: 'teste', // In a real app, this should be hashed.
             isBoss: true,
+            userType: 'Administrador',
+            fullName: 'Joyci Almeida',
+            displayName: 'Joy',
+            email: 'luxury.joycialmeida@gmail.com',
+            phone: '42999722942',
+            whatsapp: '5542999722942',
+            instagram: '@luxury.joycialmeida',
+            birthDate: '1993-11-05',
+            gender: 'Feminino',
+            role: 'CEO & Founder',
+            specialty: 'Master Lash Designer'
         };
-        await saveUsers([bossUser]);
-        console.log('BOSS user created.');
+        
+        const otherUsers: User[] = [
+            // Funcionários
+            {...defaultUserFields, id: 'user-func-1', username: 'ana_lima', password: '123', userType: 'Funcionário', fullName: 'Ana Lima', role: 'Esteticista', specialty: 'Limpeza de Pele'},
+            {...defaultUserFields, id: 'user-func-2', username: 'bruno_costa', password: '123', userType: 'Funcionário', fullName: 'Bruno Costa', role: 'Massoterapeuta', specialty: 'Massagem Relaxante'},
+            // Secretarias
+            {...defaultUserFields, id: 'user-sec-1', username: 'fernanda_souza', password: '123', userType: 'Secretaria', fullName: 'Fernanda Souza', role: 'Recepcionista', specialty: 'Agendamentos'},
+            {...defaultUserFields, id: 'user-sec-2', username: 'lucas_pereira', password: '123', userType: 'Secretaria', fullName: 'Lucas Pereira', role: 'Auxiliar Administrativo', specialty: 'Financeiro'},
+            // Profissionais Lash
+            {...defaultUserFields, id: 'user-lash-1', username: 'camila_rocha', password: '123', userType: 'Profissional Lash', fullName: 'Camila Rocha', role: 'Lash Designer', specialty: 'Volume Russo'},
+            {...defaultUserFields, id: 'user-lash-2', username: 'mariana_gomes', password: '123', userType: 'Profissional Lash', fullName: 'Mariana Gomes', role: 'Lash Designer', specialty: 'Fio a Fio'},
+            // Clientes
+            {...defaultUserFields, id: 'user-cli-1', username: 'patricia_oliveira', password: '123', userType: 'Cliente', fullName: 'Patricia Oliveira'},
+            {...defaultUserFields, id: 'user-cli-2', username: 'roberto_alves', password: '123', userType: 'Cliente', fullName: 'Roberto Alves'},
+        ]
+        
+        users = [bossUser, ...otherUsers];
+        await saveUsers(users);
+        console.log('Default users created.');
     }
 };
 
@@ -53,9 +113,11 @@ export const register = async (username: string, password: string): Promise<User
         throw new Error('Username already exists.');
     }
     const newUser: User = {
+        ...defaultUserFields,
         id: `user-${Date.now()}`,
         username,
         password, // Again, hashing is crucial in a real scenario.
+        fullName: username,
     };
     await saveUsers([...users, newUser]);
     return newUser;
@@ -98,12 +160,11 @@ export const getCurrentUser = (): User | null => {
 /**
  * Updates a user's profile information.
  * @param {string} userId - The ID of the user to update.
- * @param {string} newUsername - The new username.
- * @param {string} newPassword - The new password (optional).
+ * @param {Partial<User>} updates - An object containing the fields to update.
  * @returns {Promise<User>} The updated user object.
  * @throws {Error} If the new username is taken by another user.
  */
-export const updateUser = async (userId: string, newUsername: string, newPassword?: string): Promise<User> => {
+export const updateUser = async (userId: string, updates: Partial<User>): Promise<User> => {
     const users = await getUsers();
     const userIndex = users.findIndex(u => u.id === userId);
 
@@ -112,22 +173,25 @@ export const updateUser = async (userId: string, newUsername: string, newPasswor
     }
 
     // Check if the new username is already taken by another user.
-    if (users.some(u => u.username.toLowerCase() === newUsername.toLowerCase() && u.id !== userId)) {
+    if (updates.username && users.some(u => u.username.toLowerCase() === updates.username!.toLowerCase() && u.id !== userId)) {
         throw new Error('This username is already taken.');
     }
 
-    const updatedUser = { ...users[userIndex] };
-    updatedUser.username = newUsername;
-    if (newPassword) {
-        updatedUser.password = newPassword;
+    const currentUserData = users[userIndex];
+    // Merge updates, but handle password carefully
+    const { password, ...otherUpdates } = updates;
+    const updatedUser = { ...currentUserData, ...otherUpdates };
+    
+    if (password) { // Only update password if a new one is provided
+        updatedUser.password = password;
     }
 
     users[userIndex] = updatedUser;
     await saveUsers(users);
     
     // Update the session if the current user is the one being updated
-    const currentUser = getCurrentUser();
-    if (currentUser && currentUser.id === userId) {
+    const currentUserInSession = getCurrentUser();
+    if (currentUserInSession && currentUserInSession.id === userId) {
         sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updatedUser));
     }
 

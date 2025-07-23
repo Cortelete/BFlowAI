@@ -1,6 +1,6 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import type { Client, User, Procedure } from '../types';
+import type { Client, User, Procedure, Expense } from '../types';
 import AppLayout from '../components/AppLayout';
 import { Dashboard } from '../pages/Dashboard';
 import { Clients } from '../pages/Clients';
@@ -19,6 +19,8 @@ interface AppRouterProps {
     setClients: React.Dispatch<React.SetStateAction<Client[]>>;
     procedures: Procedure[];
     setProcedures: React.Dispatch<React.SetStateAction<Procedure[]>>;
+    expenses: Expense[];
+    setExpenses: React.Dispatch<React.SetStateAction<Expense[]>>;
     theme: string;
     toggleTheme: () => void;
     handleLoginSuccess: (user: User) => void;
@@ -33,6 +35,8 @@ const AppRouter: React.FC<AppRouterProps> = (props) => {
         setClients, 
         procedures, 
         setProcedures,
+        expenses,
+        setExpenses,
         theme, 
         toggleTheme, 
         handleLoginSuccess, 
@@ -50,7 +54,7 @@ const AppRouter: React.FC<AppRouterProps> = (props) => {
                         <Route path="/schedule" element={<Page title="Agenda"><Scheduling clients={clients} setClients={setClients} procedures={procedures} /></Page>} />
                         <Route path="/procedures" element={<Page title="Procedimentos"><Procedures procedures={procedures} setProcedures={setProcedures} currentUser={currentUser} /></Page>} />
                         <Route path="/communication" element={<Page title="Comunicação"><Communication clients={clients} currentUser={currentUser} /></Page>} />
-                        <Route path="/financials" element={<Page title="Financeiro"><Financials clients={clients} /></Page>} />
+                        <Route path="/financials" element={<Page title="Financeiro"><Financials clients={clients} expenses={expenses} setExpenses={setExpenses} currentUser={currentUser} /></Page>} />
                         <Route path="/ideas" element={<Page title="Ideias"><Ideas currentUser={currentUser} /></Page>} />
                         <Route path="/profile" element={<Page title="Perfil"><Profile user={currentUser} onUserUpdate={handleUserUpdate} /></Page>} />
                         <Route path="*" element={<Navigate to="/" />} />

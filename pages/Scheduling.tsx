@@ -10,7 +10,7 @@ interface SchedulingProps {
 }
 
 const emptyAppointment: Omit<Appointment, 'id' | 'date'> = { 
-    procedure: '', price: 0, cost: 0, time: '' 
+    procedure: '', price: 0, cost: 0, time: '', status: 'Pendente'
 };
 
 export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, procedures }) => {
@@ -158,7 +158,13 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
                         {procedures.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
                     </select>
                     <input type="time" value={newApptDetails.time || ''} onChange={e => setNewApptDetails({...newApptDetails, time: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600" />
+                    <select value={newApptDetails.status} onChange={e => setNewApptDetails({...newApptDetails, status: e.target.value as Appointment['status']})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600">
+                        <option value="Pendente">Pendente</option>
+                        <option value="Pago">Pago</option>
+                        <option value="Atrasado">Atrasado</option>
+                    </select>
                     <input type="number" placeholder="Preço (R$)" value={newApptDetails.price || ''} onChange={e => setNewApptDetails({...newApptDetails, price: parseFloat(e.target.value) || 0})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600" />
+                    <input type="number" placeholder="Custo (R$)" value={newApptDetails.cost || ''} onChange={e => setNewApptDetails({...newApptDetails, cost: parseFloat(e.target.value) || 0})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-gray-300 dark:border-gray-600" />
                     <button onClick={handleSaveAppointment} className="col-span-2 w-full bg-brand-pink-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-brand-pink-700 transition-colors">Salvar Agendamento</button>
                 </div>
             </div>
