@@ -34,7 +34,6 @@ const emptyAppointment: Omit<Appointment, 'id' | 'date'> = {
     requiresReturn: false,
     consentSigned: false,
     imageAuthSigned: false,
-    isActiveInCatalog: true,
     clientSatisfaction: 0,
     internalNotes: '',
     // Legacy fields for compatibility.
