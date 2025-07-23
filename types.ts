@@ -55,6 +55,7 @@ export interface Appointment {
     procedure: string;
     price: number;
     cost: number;
+    duration: number; // Duration in minutes
     status: 'Pago' | 'Pendente' | 'Atrasado';
     paymentMethod?: string;
 }
@@ -70,20 +71,98 @@ export interface Expense {
     amount: number;
 }
 
+// --- START OF CRM/ANAMNESIS TYPES ---
+
+export interface AnamnesisHealthHistory {
+    hypertension: boolean;
+    diabetes: boolean;
+    hormonalDisorders: boolean;
+    epilepsy: boolean;
+    heartDisease: boolean;
+    autoimmuneDisease: boolean;
+    respiratoryProblems: boolean;
+    respiratoryAllergies: boolean;
+    cancer: boolean;
+    pacemaker: boolean;
+    skinDisease: boolean;
+    keloids: boolean;
+    hepatitis: boolean;
+    hiv: boolean;
+    otherConditions: string;
+}
+
+export interface AnamnesisMedications {
+    currentMedications: string;
+    roaccutane: boolean;
+    contraceptive: boolean;
+}
+
+export interface AnamnesisAllergies {
+    alcohol: boolean;
+    latex: boolean;
+    cosmetics: boolean;
+    localAnesthetics: boolean;
+    lashGlue: boolean;
+    makeup: boolean;
+    henna: boolean;
+    otherAllergies: string;
+}
+
+export interface AnamnesisAestheticHistory {
+    lashExtensions: {
+        hasDoneBefore: boolean;
+        hadReaction: boolean;
+        reactionDescription: string;
+        wearsContacts: boolean;
+        usesEyeDrops: boolean;
+    };
+    browDesign: {
+        usedHenna: boolean;
+        allergicReactions: string;
+        hasScars: boolean;
+    };
+    skinCare: {
+        skinType: 'Oleosa' | 'Seca' | 'Mista' | 'Sensível' | 'Acneica' | 'N/A' | '';
+        usesAcids: boolean;
+        hadNeedling: boolean;
+        recentProcedures: boolean;
+    };
+}
+
+export interface AnamnesisCareRoutine {
+    usesSunscreen: boolean;
+    currentProducts: string;
+}
+
+export interface AnamnesisRecord {
+    healthHistory: AnamnesisHealthHistory;
+    medications: AnamnesisMedications;
+    allergies: AnamnesisAllergies;
+    aestheticHistory: AnamnesisAestheticHistory;
+    careRoutine: AnamnesisCareRoutine;
+    professionalNotes: string;
+    imageAuth: boolean;
+    declaration: boolean;
+}
 
 /**
- * Represents a client in the studio.
- * Each client now has a list of their appointments.
+ * Represents a client in the studio, now with a full CRM profile.
  */
 export interface Client {
     id: string;
+    photo?: string;
     name: string;
     phone: string;
     email: string;
-    birthDate?: string; // Optional: 'YYYY-MM-DD' format.
-    anamnesis: string; // Medical/health notes.
-    appointments: Appointment[]; // A list of all appointments for this client.
+    birthDate?: string;
+    gender?: 'Feminino' | 'Masculino' | 'Não Binário' | 'Prefiro não dizer' | '';
+    cpf?: string;
+    tags?: string[];
+    anamnesis: AnamnesisRecord;
+    appointments: Appointment[];
 }
+
+// --- END OF CRM/ANAMNESIS TYPES ---
 
 /**
  * Represents a service offered by the studio.
@@ -93,6 +172,7 @@ export interface Procedure {
     name: string;
     defaultPrice: number;
     defaultCost: number;
+    defaultDuration: number; // Duration in minutes
 }
 
 /**

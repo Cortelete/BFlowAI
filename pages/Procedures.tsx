@@ -10,7 +10,7 @@ interface ProceduresProps {
     currentUser: User;
 }
 
-const emptyProcedure: Omit<Procedure, 'id'> = { name: '', defaultPrice: 0, defaultCost: 0 };
+const emptyProcedure: Omit<Procedure, 'id'> = { name: '', defaultPrice: 0, defaultCost: 0, defaultDuration: 60 };
 
 export const Procedures: React.FC<ProceduresProps> = ({ procedures, setProcedures, currentUser }) => {
   const [isModalOpen, setModalOpen] = useState(false);
@@ -74,7 +74,7 @@ export const Procedures: React.FC<ProceduresProps> = ({ procedures, setProcedure
             <table className="min-w-full bg-white/50 dark:bg-gray-800/50">
                 <thead className="bg-white/30 dark:bg-gray-900/40">
                     <tr>
-                        {['Nome', 'Preço Padrão', 'Custo Padrão', currentUser.isBoss ? 'Ações' : ''].map(h => (
+                        {['Nome', 'Preço Padrão', 'Custo Padrão', 'Duração (min)', currentUser.isBoss ? 'Ações' : ''].map(h => (
                             <th key={h} className="py-3 px-6 text-left text-gray-600 dark:text-gray-300 uppercase text-sm font-semibold tracking-wider">{h}</th>
                         ))}
                     </tr>
@@ -85,6 +85,7 @@ export const Procedures: React.FC<ProceduresProps> = ({ procedures, setProcedure
                             <td className="py-4 px-6 whitespace-nowrap font-medium">{proc.name}</td>
                             <td className="py-4 px-6">{proc.defaultPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                             <td className="py-4 px-6">{proc.defaultCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                            <td className="py-4 px-6">{proc.defaultDuration} min</td>
                             {currentUser.isBoss && (
                                 <td className="py-4 px-6">
                                     <div className="flex gap-2">
@@ -111,6 +112,7 @@ export const Procedures: React.FC<ProceduresProps> = ({ procedures, setProcedure
             <input type="text" placeholder="Nome do Procedimento" value={currentProcedure.name} onChange={e => setCurrentProcedure({...currentProcedure, name: e.target.value})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg" />
             <input type="number" placeholder="Preço Padrão (R$)" value={currentProcedure.defaultPrice || ''} onChange={e => setCurrentProcedure({...currentProcedure, defaultPrice: parseFloat(e.target.value) || 0})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg" />
             <input type="number" placeholder="Custo Padrão (R$)" value={currentProcedure.defaultCost || ''} onChange={e => setCurrentProcedure({...currentProcedure, defaultCost: parseFloat(e.target.value) || 0})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg" />
+            <input type="number" placeholder="Duração Padrão (minutos)" value={currentProcedure.defaultDuration || ''} onChange={e => setCurrentProcedure({...currentProcedure, defaultDuration: parseInt(e.target.value) || 0})} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-lg" />
             <button onClick={handleSave} className="w-full bg-brand-pink-500 text-white font-bold py-3 rounded-lg hover:bg-brand-pink-700 transition-colors">
               {isEditing ? "Salvar Alterações" : "Adicionar Procedimento"}
             </button>

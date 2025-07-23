@@ -1,5 +1,28 @@
-import type { Client, Appointment } from '../types';
+import type { Client, Appointment, AnamnesisRecord } from '../types';
 import * as XLSX from 'xlsx';
+
+const emptyAnamnesisRecord: AnamnesisRecord = {
+    healthHistory: {
+        hypertension: false, diabetes: false, hormonalDisorders: false, epilepsy: false, heartDisease: false,
+        autoimmuneDisease: false, respiratoryProblems: false, respiratoryAllergies: false, cancer: false,
+        pacemaker: false, skinDisease: false, keloids: false, hepatitis: false, hiv: false, otherConditions: ''
+    },
+    medications: { currentMedications: '', roaccutane: false, contraceptive: false },
+    allergies: {
+        alcohol: false, latex: false, cosmetics: false, localAnesthetics: false, lashGlue: false,
+        makeup: false, henna: false, otherAllergies: ''
+    },
+    aestheticHistory: {
+        lashExtensions: { hasDoneBefore: false, hadReaction: false, reactionDescription: '', wearsContacts: false, usesEyeDrops: false },
+        browDesign: { usedHenna: false, allergicReactions: '', hasScars: false },
+        skinCare: { skinType: '', usesAcids: false, hadNeedling: false, recentProcedures: false }
+    },
+    careRoutine: { usesSunscreen: false, currentProducts: '' },
+    professionalNotes: '',
+    imageAuth: false,
+    declaration: false,
+};
+
 
 /**
  * Retrieves client data for a specific user from localStorage.
@@ -9,7 +32,21 @@ import * as XLSX from 'xlsx';
 export const getClients = async (userId: string): Promise<Client[]> => {
     const key = `beautyflow_clients_${userId}`;
     const clientsJson = localStorage.getItem(key);
-    return Promise.resolve(clientsJson ? JSON.parse(clientsJson) : []);
+    if (!clientsJson) return Promise.resolve([]);
+
+    // Hydrate clients with new anamnesis structure if they are old format
+    const parsedClients = JSON.parse(clientsJson);
+    const hydratedClients = parsedClients.map((client: any) => {
+        if (typeof client.anamnesis === 'string') {
+            return {
+                ...client,
+                anamnesis: { ...emptyAnamnesisRecord, professionalNotes: client.anamnesis }
+            };
+        }
+        return client;
+    });
+
+    return Promise.resolve(hydratedClients);
 };
 
 /**
@@ -47,11 +84,10 @@ export const importFromExcel = (file: File): Promise<Client[]> => {
 
                 const importedClients: Client[] = json.map((row, index) => {
                     // Map common column names (case-insensitive) to client properties.
-                    // This makes the import flexible.
                     const name = row['Nome'] || row['name'] || row['Client'] || '';
                     const phone = row['Telefone'] || row['phone'] || row['Contact'] || '';
                     const email = row['Email'] || row['email'] || '';
-                    const anamnesis = row['Anamnese'] || row['Notes'] || '';
+                    const quickNotes = row['Anamnese'] || row['Notes'] || '';
                     const lastVisitStr = row['Ultima Visita'] || row['Last Visit'];
                     const lastProcedure = row['Ultimo Procedimento'] || row['Last Procedure'] || '';
                     const price = parseFloat(row['Preco'] || row['Price'] || '0');
@@ -67,6 +103,7 @@ export const importFromExcel = (file: File): Promise<Client[]> => {
                             procedure: lastProcedure,
                             price: isNaN(price) ? 0 : price,
                             cost: isNaN(cost) ? 0 : cost,
+                            duration: 60, // Default duration for imported appointments
                             status: 'Pago', // Assume imported past appointments are paid
                         });
                     }
@@ -76,7 +113,10 @@ export const importFromExcel = (file: File): Promise<Client[]> => {
                         name,
                         phone: String(phone),
                         email,
-                        anamnesis,
+                        anamnesis: {
+                            ...emptyAnamnesisRecord,
+                            professionalNotes: quickNotes, // Add any simple notes from import to the professional notes section
+                        },
                         appointments,
                     };
                 }).filter(client => client.name); // Only import clients with a name.
