@@ -1,67 +1,40 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
 import type { MessageCategory, IdeaCategory, Client, ViralIdeaResponse } from '../types';
-import { toast } from 'react-hot-toast';
 
-// IMPORTANT: This service now gets the API key from the environment.
-// The config.ts file is no longer used for the API key.
+/**
+ * A helper function to call our secure backend API endpoint.
+ * @param action - The name of the function to trigger on the backend.
+ * @param payload - The data to send to the backend function.
+ * @returns The JSON response from the backend.
+ * @throws An error if the network request fails or the API returns an error.
+ */
+async function callGeminiApi(action: string, payload: any) {
+    const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action, payload }),
+    });
 
-const getSystemInstruction = (category: MessageCategory | IdeaCategory | 'mascot' | 'dashboard', clientName?: string) => {
-    let baseInstruction = "You are BeautyFlow AI, an expert AI assistant for 'Luxury Studio de Beleza Joyci Almeida', a high-end beauty studio in Brazil. Your tone is helpful, luxurious, and encouraging. Your responses should be in Brazilian Portuguese. ";
-
-    if (clientName) {
-        baseInstruction += `The message is for a client named ${clientName}. Personalize it. `;
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Falha na comunicação com a IA.');
     }
 
-    switch (category) {
-        // Communication
-        case 'daily':
-            return baseInstruction + "Generate a short, engaging beauty tip or fact for clients. Use emojis. Keep it concise and uplifting.";
-        case 'prospect':
-            return baseInstruction + "Generate a compelling message to attract new clients. Highlight a specific service and offer an introductory discount. Be persuasive and elegant.";
-        case 'promo':
-            return baseInstruction + "Generate a friendly message for an inactive client to encourage them to return. Mention that you miss them and suggest a service. Be warm and inviting.";
-        case 'birthday':
-            return baseInstruction + "Generate a warm and celebratory birthday message for a client. Offer a special birthday gift or discount. Use festive emojis.";
-        // Ideas
-        case 'software':
-            return baseInstruction + "Suggest a specific type of software or app that can help a beauty studio owner optimize their business. Explain the benefit in one sentence. Example: 'Sugestão de software: **App de Agendamento Inteligente** - Otimiza sua agenda e reduz faltas.'";
-        case 'marketing':
-            return baseInstruction + "Suggest a creative marketing idea to attract or retain clients for a beauty studio. Be specific and actionable. Example: 'Ideia de marketing: **Pacote Fidelidade 'Beauty VIP'** - A cada 5 procedimentos, o 6º tem 50% de desconto.'";
-        // App Helpers
-        case 'mascot':
-            return baseInstruction + "Generate a single, very short, proactive, and helpful tip for a beauty professional using this dashboard. It should be one sentence. Start with 'Que tal...' or 'Você sabia que...'. No markdown.";
-        case 'dashboard':
-             return baseInstruction + "Analyze the provided client data summary and generate one specific, actionable suggestion to improve the business. For example, suggest contacting an inactive client, promoting a popular service, or noting an upcoming birthday. Be concise and start with an emoji.";
-        default:
-            return baseInstruction;
-    }
+    return response.json();
 }
 
 /**
- * Generates marketing content using the Gemini API.
+ * Generates marketing content by calling our secure backend.
  * @param category - The type of message to generate.
  * @param clientName - Optional name of the client for personalization.
  * @returns The generated text content.
  */
 export const generateMarketingContent = async (category: MessageCategory, clientName?: string): Promise<string> => {
-    if (!process.env.API_KEY) {
-        toast.error("A Chave da API não está configurada. As funções de IA estão desabilitadas.");
-        return "IA desabilitada. Configure a chave de API.";
-    }
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Please generate a message for the '${category}' category.`,
-            config: {
-                systemInstruction: getSystemInstruction(category, clientName),
-                temperature: 0.8,
-                topP: 0.9,
-                thinkingConfig: { thinkingBudget: 0 }
-            },
-        });
-        return response.text;
+        const result = await callGeminiApi('generateMarketingContent', { category, clientName });
+        return result.text;
     } catch (error) {
         console.error("Error generating marketing content:", error);
         return "Desculpe, não foi possível gerar o conteúdo no momento. Tente novamente mais tarde.";
@@ -69,53 +42,28 @@ export const generateMarketingContent = async (category: MessageCategory, client
 };
 
 /**
- * Generates business ideas using the Gemini API.
+ * Generates business ideas by calling our secure backend.
  * @param category - The type of idea to generate ('software', 'marketing').
  * @returns The generated text content.
  */
 export const generateBusinessIdea = async (category: IdeaCategory): Promise<string> => {
-    if (!process.env.API_KEY) {
-        toast.error("A Chave da API não está configurada. As funções de IA estão desabilitadas.");
-        return "IA desabilitada. Configure a chave de API.";
-    }
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Please generate an idea for the '${category}' category.`,
-            config: {
-                systemInstruction: getSystemInstruction(category),
-                temperature: 0.9,
-                topP: 0.95,
-                thinkingConfig: { thinkingBudget: 0 }
-            },
-        });
-        return response.text;
+        const result = await callGeminiApi('generateBusinessIdea', { category });
+        return result.text;
     } catch (error) {
         console.error("Error generating business idea:", error);
         return "Desculpe, não foi possível gerar a ideia no momento. Tente novamente mais tarde.";
     }
 };
 
-
 /**
- * Generates a short, helpful tip for the mascot.
+ * Generates a short, helpful tip for the mascot by calling our secure backend.
  * @returns The generated text content.
  */
 export const generateMascotTip = async (): Promise<string> => {
-    if (!process.env.API_KEY) return "Olá! Configure sua Chave de API para receber minhas dicas.";
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: "Generate a helpful tip.",
-            config: {
-                systemInstruction: getSystemInstruction('mascot'),
-                temperature: 1.0,
-                thinkingConfig: { thinkingBudget: 0 }
-            },
-        });
-        return response.text;
+        const result = await callGeminiApi('generateMascotTip', {});
+        return result.text;
     } catch (error) {
         console.error("Error generating mascot tip:", error);
         return "Lembre-se de beber água!";
@@ -123,44 +71,16 @@ export const generateMascotTip = async (): Promise<string> => {
 };
 
 /**
- * Generates a contextual suggestion for the dashboard.
+ * Generates a contextual suggestion for the dashboard by calling our secure backend.
  * @param clients - The list of clients to analyze.
  * @returns The generated text content.
  */
 export const generateDashboardSuggestion = async (clients: Client[]): Promise<string> => {
-    if (!process.env.API_KEY) return "💡 Configure sua Chave de API para receber sugestões personalizadas!";
     if (clients.length === 0) return "Adicione seus primeiros clientes para receber sugestões personalizadas!";
     
-    // Create a concise summary of client data for the AI
-    const now = new Date();
-    const inactiveClients = clients.filter(c => {
-        if (c.appointments.length === 0) return true;
-        const lastAppt = new Date(c.appointments.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date);
-        const diffDays = (now.getTime() - lastAppt.getTime()) / (1000 * 3600 * 24);
-        return diffDays > 60;
-    }).length;
-
-    const upcomingBirthdays = clients.filter(c => {
-        if (!c.birthDate) return false;
-        const birthDate = new Date(c.birthDate);
-        const diffDays = (birthDate.setFullYear(now.getFullYear()) - now.getTime()) / (1000 * 3600 * 24);
-        return diffDays > 0 && diffDays <= 30;
-    }).length;
-
-    const clientSummary = `Client data summary: Total clients: ${clients.length}. Inactive clients (60+ days): ${inactiveClients}. Clients with birthdays in the next 30 days: ${upcomingBirthdays}.`;
-
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Based on this summary, give me one great suggestion. Summary: ${clientSummary}`,
-            config: {
-                systemInstruction: getSystemInstruction('dashboard'),
-                temperature: 0.8,
-                thinkingConfig: { thinkingBudget: 0 }
-            },
-        });
-        return response.text;
+        const result = await callGeminiApi('generateDashboardSuggestion', { clients });
+        return result.text;
     } catch (error) {
         console.error("Error generating dashboard suggestion:", error);
         return "😕 Não foi possível gerar uma sugestão. Tente novamente.";
@@ -168,79 +88,14 @@ export const generateDashboardSuggestion = async (clients: Client[]): Promise<st
 };
 
 /**
- * Generates viral content ideas for a given niche.
+ * Generates viral content ideas for a given niche by calling our secure backend.
  * @param niche - The user's area of business (e.g., 'lash extensions').
  * @returns A structured object with a trend and creative ideas.
  */
 export const generateViralIdea = async (niche: string): Promise<ViralIdeaResponse> => {
-    if (!process.env.API_KEY) {
-        throw new Error("A Chave da API não está configurada nas variáveis de ambiente da Vercel.");
-    }
-
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-    const systemInstruction = `Você é um especialista em marketing viral para o Instagram, focado no mercado brasileiro. Sua tarefa é analisar o nicho de "${niche}" e identificar a principal tendência de conteúdo e gerar 3 ideias criativas.
-- Analise o que os 5 maiores influenciadores deste nicho estão fazendo.
-- Identifique padrões em formatos (Reels, Carrossel), temas (educacional, humor) e abordagens.
-- Para a tendência, explique por que está funcionando.
-- Para as ideias criativas, seja específico e prático, fornecendo título, descrição, formato, legenda, hashtags, emojis e CTA (Call to Action).
-- Responda em JSON estruturado, em português do Brasil.`;
-
-    const responseSchema = {
-        type: Type.OBJECT,
-        properties: {
-            trend: {
-                type: Type.OBJECT,
-                properties: {
-                    title: { type: Type.STRING, description: "Título da tendência em alta." },
-                    summary: { type: Type.STRING, description: "Resumo do tipo de conteúdo que está funcionando." },
-                    analysis: { type: Type.STRING, description: "Análise objetiva do motivo pelo qual está funcionando." },
-                    formats: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Formatos de conteúdo (ex: 'Reels', 'Carrossel')." }
-                },
-                required: ["title", "summary", "analysis", "formats"]
-            },
-            creativeIdeas: {
-                type: Type.ARRAY,
-                items: {
-                    type: Type.OBJECT,
-                    properties: {
-                        id: { type: Type.STRING, description: "Um ID único para a ideia, pode ser um UUID ou timestamp."},
-                        title: { type: Type.STRING, description: "Título impactante para a ideia de conteúdo." },
-                        description: { type: Type.STRING, description: "Descrição detalhada da proposta de conteúdo." },
-                        format: { type: Type.STRING, description: "Formato sugerido (Reels, Carrossel, Story, etc.)." },
-                        hashtags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Lista de hashtags relevantes." },
-                        caption: { type: Type.STRING, description: "Sugestão de legenda para o post." },
-                        emojis: { type: Type.STRING, description: "Sugestão de emojis ideais para o post." },
-                        cta: { type: Type.STRING, description: "Call to Action recomendada (ex: 'Comente', 'Salve')." }
-                    },
-                    required: ["id", "title", "description", "format", "hashtags", "caption", "emojis", "cta"]
-                }
-            }
-        },
-        required: ["trend", "creativeIdeas"]
-    };
-    
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Gere uma tendência e 3 ideias de conteúdo viral para o nicho: ${niche}`,
-            config: {
-                systemInstruction,
-                responseMimeType: "application/json",
-                responseSchema,
-                temperature: 0.9
-            },
-        });
-        const jsonResponse = JSON.parse(response.text);
-        
-        // Ensure creative ideas have a unique ID if the model doesn't provide it
-        jsonResponse.creativeIdeas.forEach((idea: any) => {
-           if (!idea.id) {
-               idea.id = `idea-${Date.now()}-${Math.random()}`;
-           }
-        });
-
-        return jsonResponse as ViralIdeaResponse;
+        const result = await callGeminiApi('generateViralIdea', { niche });
+        return result as ViralIdeaResponse;
     } catch (error) {
         console.error("Error generating viral idea:", error);
         throw new Error("Não foi possível gerar as ideias no momento. A IA pode estar sobrecarregada. Tente novamente.");
