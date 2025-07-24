@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Client, Appointment, Procedure } from '../types';
 import toast from 'react-hot-toast';
@@ -20,8 +18,6 @@ const emptyAppointment: Omit<Appointment, 'id' | 'date'> = {
     professional: '',
     generalNotes: '',
     materials: [],
-    equipmentUsed: '',
-    procedureSteps: [],
     duration: 60,
     technicalNotes: '',
     value: 0,
@@ -36,6 +32,7 @@ const emptyAppointment: Omit<Appointment, 'id' | 'date'> = {
     requiresReturn: false,
     consentSigned: false,
     imageAuthSigned: false,
+    isActiveInCatalog: true,
     clientSatisfaction: 0,
     internalNotes: '',
     // Legacy fields for compatibility.
@@ -61,7 +58,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [newApptClientId, setNewApptClientId] = useState<string>('');
   const [newApptDetails, setNewApptDetails] = useState(emptyAppointment);
-  
+
   // Auto-fill price, cost, and duration when procedure changes
   useEffect(() => {
     const selectedProc = procedures.find(p => p.name === newApptDetails.procedureName);
@@ -76,7 +73,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
         }));
     }
   }, [newApptDetails.procedureName, procedures]);
-  
+
   const filteredClientsForSelect = useMemo(() => {
     if (!clientSearchTerm) return clients;
     return clients.filter(c => c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()));
@@ -102,7 +99,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
 
   const selectedDateString = selectedDate.toISOString().split('T')[0];
   const appointmentsForSelectedDay = appointmentsByDay.get(selectedDateString) || [];
-  
+
   const availableTimeSlots = useMemo(() => {
     const startTime = 8 * 60; // 8:00 AM in minutes from midnight
     const endTime = 18 * 60; // 6:00 PM in minutes
@@ -133,7 +130,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
                 break;
             }
         }
-        
+
         if (isAvailable) {
             const hour = Math.floor(slotStart / 60);
             const minute = slotStart % 60;
@@ -157,7 +154,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
           toast.error("Cliente, Procedimento e Horário são obrigatórios.");
           return;
       }
-      
+
       const finalValue = (newApptDetails.value || 0) - (newApptDetails.discount || 0);
 
       const appointmentToAdd: Appointment = {
@@ -175,7 +172,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
               return client;
           })
       );
-      
+
       toast.success("Agendamento salvo com sucesso!");
       setNewApptClientId('');
       setClientSearchTerm('');
@@ -197,7 +194,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
     <div className="p-4 md:p-6">
       <div className="bg-white/10 dark:bg-black/20 backdrop-blur-sm p-6 rounded-xl shadow-lg">
         <h2 className="text-3xl font-bold font-serif text-gray-800 dark:text-white mb-6">Agenda</h2>
-        
+
         <div className="bg-white/20 dark:bg-black/30 p-4 rounded-xl">
             <div className="flex justify-between items-center mb-4">
                 <button onClick={() => setCurrentMonthDate(new Date(currentMonthDate.setMonth(currentMonthDate.getMonth() - 1)))} className="p-2 rounded-full hover:bg-white/30 dark:hover:bg-black/50 transition-colors"><Icon icon="chevron-up" className="-rotate-90" /></button>
@@ -226,7 +223,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
             </div>
         </div>
       </div>
-      
+
       <Modal
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
@@ -310,4 +307,3 @@ export const Scheduling: React.FC<SchedulingProps> = ({ clients, setClients, pro
 
     </div>
   );
-};

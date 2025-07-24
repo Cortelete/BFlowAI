@@ -1,4 +1,3 @@
-
 import type { Client, Appointment, AnamnesisRecord } from '../types';
 import * as XLSX from 'xlsx';
 
@@ -35,8 +34,8 @@ export const createEmptyAppointment = (date?: string): Appointment => {
         professional: '',
         generalNotes: '',
         materials: [],
-        equipmentUsed: '',
-        procedureSteps: [],
+
+
         duration: 60,
         technicalNotes: '',
         value: 0,
@@ -51,6 +50,7 @@ export const createEmptyAppointment = (date?: string): Appointment => {
         requiresReturn: false,
         consentSigned: false,
         imageAuthSigned: false,
+        isActiveInCatalog: true,
         clientSatisfaction: 0,
         internalNotes: '',
         // Legacy fields
@@ -97,21 +97,22 @@ export const getClients = async (userId: string): Promise<Client[]> => {
                         startTime: appt.time,
                     }
                 }
-                // Hydrate existing new-format appointments with even newer fields
-                return {
-                    ...createEmptyAppointment(appt.date),
-                    ...appt
-                };
+                return appt;
+
+
+
+
             });
         }
 
-        return {
-            ...client,
-            anamnesis: {
-                ...emptyAnamnesisRecord,
-                ...client.anamnesis,
-            },
-        };
+
+        return client;
+
+
+
+
+
+
     });
 
     return Promise.resolve(hydratedClients);
@@ -175,7 +176,7 @@ export const importFromExcel = (file: File): Promise<Client[]> => {
                         newAppt.status = 'Pago';
                         appointments.push(newAppt);
                     }
-                    
+
                     return {
                         id: `client-import-${Date.now()}-${index}`,
                         name,
