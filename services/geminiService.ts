@@ -115,7 +115,7 @@ export const generateMascotTip = async (): Promise<string> => {
         return response.text;
     } catch (error) {
         console.error("Error generating mascot tip:", error);
-        return "Lembre-se de beber água!";
+        return "Lembre-se de beber água e se manter hidratada!";
     }
 };
 
@@ -126,7 +126,7 @@ export const generateMascotTip = async (): Promise<string> => {
  */
 export const generateDashboardSuggestion = async (clients: Client[]): Promise<string> => {
     if (!process.env.API_KEY) return "💡 Configure sua Chave de API para receber sugestões personalizadas!";
-    if (clients.length === 0) return "Adicione seus primeiros clientes para receber sugestões personalizadas!";
+    if (clients.length === 0) return "Adicione suas primeiras clientes para receber sugestões personalizadas!";
     
     // Create a concise summary of client data for the AI
     const now = new Date();
@@ -144,7 +144,7 @@ export const generateDashboardSuggestion = async (clients: Client[]): Promise<st
         return diffDays > 0 && diffDays <= 30;
     }).length;
 
-    const clientSummary = `Client data summary: Total clients: ${clients.length}. Inactive clients (60+ days): ${inactiveClients}. Clients with birthdays in the next 30 days: ${upcomingBirthdays}.`;
+    const clientSummary = `Resumo dos dados de clientes: Total de clientes: ${clients.length}. Clientes inativas (60+ dias): ${inactiveClients}. Clientes com aniversário nos próximos 30 dias: ${upcomingBirthdays}.`;
 
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });

@@ -15,6 +15,38 @@ const App: React.FC = () => {
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
     const [isLoading, setIsLoading] = useState(true);
     
+    // Helper to load all data for a user
+    const loadUserData = async (user: User) => {
+        let clientData: Client[] = [];
+        // Admins get to see all clients from all users
+        if (user.userType === 'Administrador' || user.isBoss) {
+            const allUsers = await AuthService.getAllUsers();
+            const allClientPromises = allUsers.map(u => getClients(u.id));
+            const allClientsArrays = await Promise.all(allClientPromises);
+            
+            // Flatten the array of arrays and remove duplicates by ID
+            const clientMap = new Map<string, Client>();
+            allClientsArrays.flat().forEach(client => {
+                if (!clientMap.has(client.id)) {
+                    clientMap.set(client.id, client);
+                }
+            });
+            clientData = Array.from(clientMap.values());
+        } else {
+            // Regular users see only their own clients
+            clientData = await getClients(user.id);
+        }
+
+        const [procedureData, expenseData] = await Promise.all([
+            getProcedures(user.id),
+            getExpenses(user.id)
+        ]);
+
+        setClients(clientData);
+        setProcedures(procedureData);
+        setExpenses(expenseData);
+    };
+
     // Initial data load effect
     useEffect(() => {
         const loadInitialData = async () => {
@@ -22,15 +54,7 @@ const App: React.FC = () => {
             const user = AuthService.getCurrentUser();
             if (user) {
                 setCurrentUser(user);
-                // Fetch data in parallel for efficiency
-                const [clientData, procedureData, expenseData] = await Promise.all([
-                    getClients(user.id),
-                    getProcedures(user.id),
-                    getExpenses(user.id)
-                ]);
-                setClients(clientData);
-                setProcedures(procedureData);
-                setExpenses(expenseData);
+                await loadUserData(user);
             }
             setIsLoading(false);
         };
@@ -41,7 +65,13 @@ const App: React.FC = () => {
     // Effect to save clients when they change
     useEffect(() => {
         if (!isLoading && currentUser) {
-            saveClients(currentUser.id, clients);
+            // Save logic needs to be per-user. The global view for admins is read-only in a sense.
+            // When an admin edits a client, that save needs to go to the correct user's storage.
+            // This is handled within the component logic (e.g., ClientDetailsModal).
+            // For simplicity, we won't try to auto-save the aggregated list.
+            if (currentUser.userType !== 'Administrador' && !currentUser.isBoss) {
+                 saveClients(currentUser.id, clients);
+            }
         }
     }, [clients, currentUser, isLoading]);
 
@@ -73,15 +103,8 @@ const App: React.FC = () => {
 
     const handleLoginSuccess = async (user: User) => {
         setCurrentUser(user);
-        const [clientData, procedureData, expenseData] = await Promise.all([
-            getClients(user.id),
-            getProcedures(user.id),
-            getExpenses(user.id)
-        ]);
-        setClients(clientData);
-        setProcedures(procedureData);
-        setExpenses(expenseData);
-        toast.success(`Bem-vindo(a) de volta, ${user.username}!`);
+        await loadUserData(user);
+        toast.success(`Bem-vindo(a) de volta, ${user.displayName || user.username}!`);
     };
 
     const handleLogout = async () => {

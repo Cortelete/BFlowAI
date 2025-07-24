@@ -2,7 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { User } from '../types';
 import * as AuthService from '../services/authService';
 import { toast } from 'react-hot-toast';
-import { Icon } from '../components/Icons';
+import { Icon } from '../components/common/Icon';
+import InputField from '../components/common/InputField';
+import SelectField from '../components/common/SelectField';
 
 interface ProfileProps {
     user: User;
@@ -31,7 +33,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUserUpdate }) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Keep profileData in sync if the user prop changes from above
     useEffect(() => {
         setProfileData(user);
     }, [user]);
@@ -56,7 +57,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUserUpdate }) => {
         if (!profileData.birthDate) return null;
         try {
             const birthDate = new Date(profileData.birthDate);
-            // Check if date is valid
             if(isNaN(birthDate.getTime())) return null;
             const ageDifMs = Date.now() - birthDate.getTime();
             const ageDate = new Date(ageDifMs);
@@ -75,7 +75,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUserUpdate }) => {
         }
 
         const updates: Partial<User> = { ...profileData };
-        // Don't send an empty password update
         if (newPassword) {
             updates.password = newPassword;
         } else {
@@ -108,7 +107,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUserUpdate }) => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column: Profile Pic & Bio */}
                     <div className="lg:col-span-1 space-y-6">
                         <div className="bg-white/10 dark:bg-black/20 backdrop-blur-sm p-6 rounded-xl shadow-lg text-center">
                             <div
@@ -147,7 +145,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUserUpdate }) => {
                         </div>
                     </div>
                     
-                    {/* Right Column: Details */}
                     <div className="lg:col-span-2 space-y-6">
                         <div className="bg-white/10 dark:bg-black/20 backdrop-blur-sm p-6 rounded-xl shadow-lg">
                             <h3 className="text-xl font-bold font-serif mb-4">Informações Básicas</h3>

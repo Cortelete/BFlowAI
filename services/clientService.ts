@@ -2,7 +2,7 @@
 import type { Client, Appointment, AnamnesisRecord } from '../types';
 import * as XLSX from 'xlsx';
 
-const emptyAnamnesisRecord: AnamnesisRecord = {
+export const emptyAnamnesisRecord: AnamnesisRecord = {
     healthHistory: {
         hypertension: false, diabetes: false, hormonalDisorders: false, epilepsy: false, heartDisease: false,
         autoimmuneDisease: false, respiratoryProblems: false, respiratoryAllergies: false, cancer: false,
@@ -146,7 +146,7 @@ export const importFromExcel = (file: File): Promise<Client[]> => {
         reader.onload = (e: ProgressEvent<FileReader>) => {
             try {
                 if (!e.target || !e.target.result) {
-                    throw new Error("Failed to read file.");
+                    throw new Error("Falha ao ler o arquivo.");
                 }
                 const data = new Uint8Array(e.target.result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array', cellDates: true });
@@ -195,13 +195,13 @@ export const importFromExcel = (file: File): Promise<Client[]> => {
 
                 resolve(importedClients);
             } catch (error) {
-                console.error("Error parsing Excel file:", error);
-                reject("Could not parse the file. Please ensure it's a valid Excel or CSV file.");
+                console.error("Erro ao analisar o arquivo Excel:", error);
+                reject("Não foi possível analisar o arquivo. Verifique se é um arquivo Excel ou CSV válido.");
             }
         };
 
         reader.onerror = (error) => {
-            reject("Failed to read the file.");
+            reject("Falha ao ler o arquivo.");
         };
 
         reader.readAsArrayBuffer(file);

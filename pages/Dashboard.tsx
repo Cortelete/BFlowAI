@@ -1,62 +1,16 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Client } from '../types';
-import { Icon } from '../components/Icons';
+import { Icon } from '../components/common/Icon';
 import { EditableText } from '../components/EditableText';
 import { generateDashboardSuggestion } from '../services/geminiService';
 import { toast } from 'react-hot-toast';
+import StatCard from '../components/dashboard/StatCard';
+import RevenueBarChart from '../components/dashboard/RevenueBarChart';
 
 interface DashboardProps {
   clients: Client[];
   isBoss: boolean;
 }
-
-const StatCard: React.FC<{
-  title: string;
-  value: string;
-  icon: string;
-  color: string;
-  description: string;
-}> = ({ title, value, icon, color, description }) => (
-  <div className={`bg-opacity-20 backdrop-blur-lg border border-opacity-30 p-6 rounded-2xl shadow-lg flex items-center justify-between transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${color}`}>
-    <div>
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <p className="text-4xl font-bold font-serif">{value}</p>
-      <p className="text-sm opacity-80 mt-1">{description}</p>
-    </div>
-    <div className="text-5xl opacity-70">
-        <Icon icon={icon} />
-    </div>
-  </div>
-);
-
-const RevenueBarChart: React.FC<{ data: { [month: string]: number } }> = ({ data }) => {
-    const months = Object.keys(data);
-    const values = Object.values(data);
-    const maxValue = Math.max(...values, 1); // Avoid division by zero
-
-    if(months.length === 0) {
-        return <p className="text-center text-gray-500 dark:text-gray-400 mt-4">Nenhum dado de faturamento para exibir o gráfico.</p>
-    }
-
-    return (
-        <div className="mt-8 bg-white/20 dark:bg-black/30 p-6 rounded-2xl shadow-lg">
-            <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Faturamento Mensal</h3>
-            <div className="flex justify-around items-end h-64 gap-2">
-                {months.map(month => (
-                    <div key={month} className="flex flex-col items-center flex-1">
-                        <div className="w-full bg-brand-purple-300/50 dark:bg-brand-purple-700/50 rounded-t-lg hover:opacity-80 transition-opacity flex items-end" style={{ height: `${(data[month] / maxValue) * 100}%` }}>
-                           <span className="text-xs text-white font-bold self-start p-1 bg-brand-purple-500/80 rounded-t-lg w-full text-center">
-                                {data[month].toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                           </span>
-                        </div>
-                        <div className="text-xs font-semibold mt-2">{month}</div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
 
 export const Dashboard: React.FC<DashboardProps> = ({ clients, isBoss }) => {
   const [suggestion, setSuggestion] = useState<string>('');
@@ -68,14 +22,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, isBoss }) => {
         const newSuggestion = await generateDashboardSuggestion(clients);
         setSuggestion(newSuggestion);
     } catch(e) {
-        toast.error("Failed to generate suggestion.");
+        toast.error("Falha ao gerar sugestão.");
     } finally {
         setIsLoadingSuggestion(false);
     }
   }
 
   useEffect(() => {
-    getNewSuggestion();
+    if (clients.length > 0) {
+        getNewSuggestion();
+    }
   }, [clients]);
 
   const stats = useMemo(() => {
@@ -91,14 +47,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, isBoss }) => {
             recurringClients.add(client.id);
         }
         client.appointments.forEach(appt => {
-            totalRevenue += appt.price;
+            const apptValue = appt.finalValue || appt.value || appt.price;
+            if (appt.status === 'Pago') {
+                totalRevenue += apptValue;
+
+                const apptDate = new Date(appt.date);
+                const utcDate = new Date(apptDate.getUTCFullYear(), apptDate.getUTCMonth(), apptDate.getUTCDate());
+                const monthKey = monthFormatter.format(utcDate);
+                monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + apptValue;
+            }
+
             if (appt.date === today) {
                 appointmentsToday++;
             }
-            // Aggregate monthly revenue
-            const apptDate = new Date(appt.date);
-            const monthKey = monthFormatter.format(apptDate).replace('.', '');
-            monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + appt.price;
         });
     });
 
@@ -129,19 +90,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, isBoss }) => {
             value={stats.totalClients.toString()}
             icon="clients"
             color="bg-brand-purple-500 text-brand-purple-700 dark:text-brand-purple-300 border-brand-purple-500"
-            description="Clientes cadastrados na plataforma"
+            description="Clientes cadastradas na plataforma"
           />
           <StatCard 
-            title="Faturamento Total"
+            title="Faturamento (Pago)"
             value={stats.totalRevenue}
             icon="dollar-sign"
             color="bg-green-500 text-green-700 dark:text-green-300 border-green-500"
-            description="Receita de todos os agendamentos"
+            description="Receita de agendamentos pagos"
           />
           <StatCard 
             title="Atendimentos Hoje"
             value={stats.appointmentsToday.toString()}
-            icon="time"
+            icon="clock"
             color="bg-brand-pink-500 text-brand-pink-700 dark:text-brand-pink-300 border-brand-pink-500"
             description="Agendamentos para a data de hoje"
           />

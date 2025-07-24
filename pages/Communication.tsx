@@ -1,118 +1,19 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { generateMarketingContent } from '../services/geminiService';
 import type { MessageCategory, Client, User } from '../types';
 import { toast } from 'react-hot-toast';
+import { useLimiter } from '../hooks/useLimiter';
+import GenerationCard from '../components/communication/GenerationCard';
+import PersonalizedAction from '../components/communication/PersonalizedAction';
 
 const MAX_GENERATIONS_PER_DAY = 10;
-
-const useMessageLimiter = (category: MessageCategory, userId: string) => {
-    const key = `beautyflow_comm_usage_${userId}_${category}`;
-    
-    const getUsage = useCallback(() => {
-        const today = new Date().toISOString().split('T')[0];
-        const stored = localStorage.getItem(key);
-        if (stored) {
-            const data = JSON.parse(stored);
-            if (data.date === today) return data.count;
-        }
-        return 0;
-    }, [key]);
-
-    const [usage, setUsage] = useState(getUsage);
-
-    useEffect(() => { setUsage(getUsage()); }, [getUsage]);
-
-    const recordUsage = useCallback(() => {
-        const today = new Date().toISOString().split('T')[0];
-        const currentCount = getUsage();
-        if (currentCount < MAX_GENERATIONS_PER_DAY) {
-            const newCount = currentCount + 1;
-            localStorage.setItem(key, JSON.stringify({ date: today, count: newCount }));
-            setUsage(newCount);
-            return true;
-        }
-        return false;
-    }, [getUsage, key]);
-
-    return { usage, recordUsage, isLimited: usage >= MAX_GENERATIONS_PER_DAY };
-};
-
-
-interface GenerationCardProps {
-    title: string;
-    description: string;
-    category: MessageCategory;
-    buttonText: string;
-    color: string;
-    userId: string;
-}
-
-const GenerationCard: React.FC<GenerationCardProps> = ({ title, description, category, buttonText, color, userId }) => {
-    const [message, setMessage] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const { usage, recordUsage, isLimited } = useMessageLimiter(category, userId);
-
-    const handleGenerate = async () => {
-        if(isLimited) {
-            toast.error(`Você atingiu o limite de ${MAX_GENERATIONS_PER_DAY} gerações para esta categoria hoje.`);
-            return;
-        }
-        if(recordUsage()) {
-            setIsLoading(true);
-            const result = await generateMarketingContent(category);
-            setMessage(result);
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className={`bg-opacity-20 backdrop-blur-lg border border-opacity-30 p-6 rounded-2xl shadow-lg ${color}`}>
-            <h3 className="text-2xl font-semibold font-serif mb-2">{title}</h3>
-            <p className="text-sm opacity-80 mb-4">{description}</p>
-            <textarea
-                value={isLoading ? 'Gerando com a magia da IA...' : message}
-                readOnly
-                placeholder="Sua mensagem gerada por IA aparecerá aqui..."
-                rows={5}
-                className="w-full p-3 bg-white/20 dark:bg-black/30 border border-gray-300/50 dark:border-gray-600/50 rounded-lg focus:outline-none resize-none transition-all mb-4"
-                onClick={(e) => { e.currentTarget.select(); navigator.clipboard.writeText(message); toast.success("Mensagem copiada!"); }}
-            />
-            <button
-                onClick={handleGenerate}
-                disabled={isLoading || isLimited}
-                className={`w-full text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${isLoading || isLimited ? 'bg-gray-500' : 'bg-brand-pink-500 hover:bg-brand-pink-700'}`}
-            >
-                {isLoading ? 'Gerando...' : buttonText}
-            </button>
-            <p className="text-xs text-center mt-3 opacity-70">Uso hoje: {usage}/{MAX_GENERATIONS_PER_DAY}</p>
-        </div>
-    );
-};
-
-const PersonalizedAction: React.FC<{ client: Client; actionType: 'birthday' | 'promo'; onGenerate: (client: Client, type: MessageCategory) => void; disabled: boolean }> = ({ client, actionType, onGenerate, disabled }) => {
-    const isBirthday = actionType === 'birthday';
-    const birthDateDayMonth = isBirthday && client.birthDate ? client.birthDate.split('-').reverse().join('/') : '';
-
-    return (
-        <li className={`p-3 rounded-lg flex justify-between items-center transition hover:shadow-md ${isBirthday ? 'bg-yellow-100 dark:bg-yellow-500/20' : 'bg-purple-100 dark:bg-brand-purple-500/20'}`}>
-            <div>
-                <p className="font-semibold">{client.name}</p>
-                <p className="text-sm opacity-70">{isBirthday ? `Aniversário em ${birthDateDayMonth}` : `Última visita há ${Math.floor((new Date().getTime() - new Date(client.appointments.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date).getTime()) / (1000 * 3600 * 24))} dias`}</p>
-            </div>
-            <button onClick={() => onGenerate(client, isBirthday ? 'birthday' : 'promo')} disabled={disabled} className="bg-brand-pink-500 text-white font-bold text-xs py-1 px-3 rounded-lg shadow-md hover:bg-brand-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                Gerar
-            </button>
-        </li>
-    )
-}
-
 
 export const Communication: React.FC<{ clients: Client[], currentUser: User }> = ({ clients, currentUser }) => {
     const [generatedMessage, setGeneratedMessage] = useState({ title: '', content: ''});
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const birthdayLimiter = useMessageLimiter('birthday', currentUser.id);
-    const promoLimiter = useMessageLimiter('promo', currentUser.id);
+    const birthdayLimiter = useLimiter('birthday', currentUser.id, MAX_GENERATIONS_PER_DAY);
+    const promoLimiter = useLimiter('promo', currentUser.id, MAX_GENERATIONS_PER_DAY);
 
     const handlePersonalizedGenerate = async (client: Client, type: MessageCategory) => {
         const isBirthday = type === 'birthday';
@@ -132,34 +33,29 @@ export const Communication: React.FC<{ clients: Client[], currentUser: User }> =
         }
     }
 
-    const upcomingBirthdays = clients.filter(c => {
+    const upcomingBirthdays = useMemo(() => clients.filter(c => {
         if (!c.birthDate) return false;
         const now = new Date();
-        now.setHours(0, 0, 0, 0); // Normalize to start of today
+        now.setHours(0, 0, 0, 0);
 
-        // Parse YYYY-MM-DD manually to avoid timezone bugs with `new Date(string)`
         const [_year, month, day] = c.birthDate.split('-').map(Number);
-        
         const birthDateThisYear = new Date(now.getFullYear(), month - 1, day);
-
         const diffDays = (birthDateThisYear.getTime() - now.getTime()) / (1000 * 3600 * 24);
         
-        // Check for birthdays in the next 30 days
         return diffDays >= 0 && diffDays <= 30;
     }).sort((a, b) => {
         const [_ay, am, ad] = a.birthDate!.split('-').map(Number);
         const [_by, bm, bd] = b.birthDate!.split('-').map(Number);
-        // Compare month first, then day
         if (am !== bm) return am - bm;
         return ad - bd;
-    });
+    }), [clients]);
 
-    const inactiveClients = clients.filter(c => {
-         if (c.appointments.length === 0) return false; // Not considered inactive if they never came
+    const inactiveClients = useMemo(() => clients.filter(c => {
+         if (c.appointments.length === 0) return false;
          const lastApptDate = new Date(c.appointments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date);
          const diffDays = (new Date().getTime() - lastApptDate.getTime()) / (1000 * 3600 * 24);
-         return diffDays > 60 && diffDays < 365; // Inactive for 2-12 months
-    });
+         return diffDays > 60 && diffDays < 365;
+    }), [clients]);
 
     return (
         <div className="p-4 md:p-6">
@@ -180,7 +76,7 @@ export const Communication: React.FC<{ clients: Client[], currentUser: User }> =
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <h4 className="font-bold mb-2">
-                                    🎉 Aniversariantes do Mês
+                                    🎉 Próximos Aniversários
                                     <span className="text-sm font-normal ml-2 text-gray-500 dark:text-gray-400">({birthdayLimiter.usage}/{MAX_GENERATIONS_PER_DAY})</span>
                                 </h4>
                                 <ul className="space-y-2 h-48 overflow-y-auto pr-2">
@@ -203,10 +99,10 @@ export const Communication: React.FC<{ clients: Client[], currentUser: User }> =
                         <textarea
                             value={isGenerating ? 'Gerando...' : generatedMessage.content}
                             readOnly
-                            placeholder="Clique em 'Gerar' ao lado de um cliente para criar uma mensagem personalizada aqui."
+                            placeholder="Clique em 'Gerar' ao lado de uma cliente para criar uma mensagem personalizada aqui."
                             rows={10}
                             className="w-full p-3 bg-white/30 dark:bg-black/40 border border-gray-300/50 dark:border-gray-600/50 rounded-lg focus:outline-none resize-none transition-all"
-                            onClick={(e) => { e.currentTarget.select(); navigator.clipboard.writeText(generatedMessage.content); toast.success("Mensagem copiada!"); }}
+                            onClick={(e) => { if(generatedMessage.content) { e.currentTarget.select(); navigator.clipboard.writeText(generatedMessage.content); toast.success("Mensagem copiada!"); }}}
                         />
                     </div>
                 </div>

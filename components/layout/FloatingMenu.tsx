@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Icon } from './Icons';
+import { Icon } from '../common/Icon';
 
 interface NavItem {
   path: string;
