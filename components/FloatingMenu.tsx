@@ -1,9 +1,3 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Icon } from './Icons';
-
-interface NavItem {
-  path: string;
   label: string;
   icon: string;
 }

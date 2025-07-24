@@ -1,9 +1,3 @@
-import React, { useState, useEffect } from 'react';
-import type { EditableText as EditableTextType } from '../types';
-
-const STORAGE_KEY = 'beautyflow_editable_texts';
-
-// Helper functions to interact with localStorage for editable texts.
 const getTexts = (): EditableTextType => {
     const texts = localStorage.getItem(STORAGE_KEY);
     return texts ? JSON.parse(texts) : {};

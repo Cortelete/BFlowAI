@@ -1,6 +1,5 @@
 
-
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import type { Procedure, User } from '../types';
 import { toast } from 'react-hot-toast';
 import Modal from '../components/Modal';
@@ -89,14 +88,6 @@ export const Procedures: React.FC<ProceduresProps> = ({ procedures, setProcedure
   const [isModalOpen, setModalOpen] = useState(false);
   const [currentProcedure, setCurrentProcedure] = useState<Procedure | Omit<Procedure, 'id'>>(emptyProcedure);
   const [isEditing, setIsEditing] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState('Todos');
-
-  const categories = useMemo(() => ['Todos', ...Array.from(new Set(procedures.map(p => p.category)))], [procedures]);
-
-  const filteredProcedures = useMemo(() => {
-    if (categoryFilter === 'Todos') return procedures;
-    return procedures.filter(p => p.category === categoryFilter);
-  }, [procedures, categoryFilter]);
 
   const openModalForAdd = () => {
     setCurrentProcedure(emptyProcedure);
@@ -164,16 +155,9 @@ export const Procedures: React.FC<ProceduresProps> = ({ procedures, setProcedure
             )}
         </div>
 
-        <div className="mb-6 flex items-center gap-2 bg-white/20 dark:bg-black/30 p-1 rounded-full overflow-x-auto">
-            {categories.map(cat => (
-              <button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap ${categoryFilter === cat ? 'bg-white dark:bg-gray-900 shadow text-brand-pink-500' : 'hover:bg-white/50 dark:hover:bg-black/50'}`}>{cat}</button>
-            ))}
-        </div>
-
-
-        {filteredProcedures.length > 0 ? (
+        {procedures.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredProcedures.map((proc) => (
+                {procedures.map((proc) => (
                     <ProcedureCard 
                         key={proc.id} 
                         proc={proc} 

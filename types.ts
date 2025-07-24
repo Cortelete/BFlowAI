@@ -63,12 +63,6 @@ export interface ProcedureImage {
     caption: string;
 }
 
-export interface ProcedureStep {
-    id: string;
-    name: string;
-    done: boolean;
-}
-
 /**
  * Represents a complete clinical record for a performed procedure.
  * This replaces the previous simple Appointment interface.
@@ -85,13 +79,14 @@ export interface Appointment {
     professional: string;
     generalNotes: string;
     
-    // Section 2: Materiais e Técnicas
+    // Section 2: Materiais
     materials: MaterialUsed[];
-    equipmentUsed: string;
-    procedureSteps: ProcedureStep[];
+    
+    // Section 3: Detalhes do Procedimento
+    duration: number; // in minutes, calculated from start/end time or manual
     technicalNotes: string;
     
-    // Section 3: Financeiro
+    // Section 4: Financeiro
     value: number;
     discount: number;
     finalValue: number;
@@ -100,30 +95,29 @@ export interface Appointment {
     cost: number; // calculated from materials
     commission: number; // in percentage or absolute value
     
-    // Section 4: Imagens
+    // Section 5: Imagens
     media: ProcedureImage[];
     
-    // Section 5: Pós-Atendimento
+    // Section 6: Anamnese (linked implicitly by being part of a Client)
+    
+    // Section 7: Pós-Atendimento
     postProcedureInstructions: string;
     requiresReturn: boolean;
     returnDate?: string;
     
-    // Section 6: Documentação & Configurações Internas
+    // Section 8: Documentação & Configurações Internas
     consentSigned: boolean;
     imageAuthSigned: boolean;
+    isActiveInCatalog: boolean; 
     
-    // Section 7: Avaliação
+    // Section 9: Avaliação
     clientSatisfaction: number; // 0-5 stars
     internalNotes: string;
     
     // Legacy fields for compatibility. `procedure` is now `procedureName`, `price` is `value`.
     procedure: string;
     price: number; 
-    duration: number; // in minutes, calculated from start/end time or manual
     time: string; // Replaced by startTime/endTime
-
-    // Field removed as it's part of the procedure template, not the record.
-    // isActiveInCatalog: boolean; 
 }
 
 
@@ -227,13 +221,6 @@ export interface Client {
     profession?: string;
     howTheyMetUs?: string;
     tags?: string[];
-    // New aesthetic preferences fields
-    aestheticGoals?: string;
-    usualProcedures?: string;
-    careFrequency?: string;
-    areasOfInterest?: string[];
-    // Internal notes for the professional
-    internalNotes?: string;
     anamnesis: AnamnesisRecord;
     appointments: Appointment[];
 }

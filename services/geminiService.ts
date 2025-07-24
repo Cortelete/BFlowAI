@@ -1,13 +1,31 @@
 
+
 import { GoogleGenAI } from "@google/genai";
 import type { MessageCategory, IdeaCategory, Client } from '../types';
 
-// IMPORTANT: This service now gets the API key from the environment.
-// The config.ts file is no longer used for the API key.
+// 1. Cria uma variável no escopo do módulo para armazenar em cache a instância do cliente de IA.
+let aiClient: GoogleGenAI | null = null;
 
-// No global AI initialization to prevent crashing if API_KEY is missing.
-// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-// const model = "gemini-2.5-flash";
+/**
+ * Inicializa e retorna uma instância singleton do cliente GoogleGenAI.
+ * Isso evita a criação de uma nova instância a cada chamada de API, melhorando a eficiência.
+ * Lida com segurança com casos em que a chave da API pode estar ausente.
+ * @returns {GoogleGenAI | null} O cliente inicializado ou nulo se a chave da API não estiver disponível.
+ */
+const getAiClient = (): GoogleGenAI | null => {
+    // Se a chave da API não estiver disponível no ambiente, não faça nada.
+    if (!process.env.API_KEY) {
+        return null;
+    }
+
+    // Se o cliente ainda não foi criado, crie-o e armazene-o em cache.
+    if (!aiClient) {
+        aiClient = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    }
+    
+    return aiClient;
+};
+
 
 const getSystemInstruction = (category: MessageCategory | IdeaCategory | 'mascot' | 'dashboard', clientName?: string) => {
     let baseInstruction = "You are BeautyFlow AI, an expert AI assistant for 'Luxury Studio de Beleza Joyci Almeida', a high-end beauty studio in Brazil. Your tone is helpful, luxurious, and encouraging. Your responses should be in Brazilian Portuguese. ";
@@ -48,9 +66,10 @@ const getSystemInstruction = (category: MessageCategory | IdeaCategory | 'mascot
  * @returns The generated text content.
  */
 export const generateMarketingContent = async (category: MessageCategory, clientName?: string): Promise<string> => {
-    if (!process.env.API_KEY) return "A Chave da API não está configurada. As funções de IA estão desabilitadas.";
+    const ai = getAiClient();
+    if (!ai) return "A Chave da API não está configurada. As funções de IA estão desabilitadas.";
+    
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Please generate a message for the '${category}' category.`,
@@ -74,9 +93,10 @@ export const generateMarketingContent = async (category: MessageCategory, client
  * @returns The generated text content.
  */
 export const generateBusinessIdea = async (category: IdeaCategory): Promise<string> => {
-    if (!process.env.API_KEY) return "A Chave da API não está configurada. As funções de IA estão desabilitadas.";
+    const ai = getAiClient();
+    if (!ai) return "A Chave da API não está configurada. As funções de IA estão desabilitadas.";
+    
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Please generate an idea for the '${category}' category.`,
@@ -100,9 +120,10 @@ export const generateBusinessIdea = async (category: IdeaCategory): Promise<stri
  * @returns The generated text content.
  */
 export const generateMascotTip = async (): Promise<string> => {
-    if (!process.env.API_KEY) return "Olá! Para receber dicas da IA, configure sua Chave de API.";
+    const ai = getAiClient();
+    if (!ai) return "Olá! Para receber dicas da IA, configure sua Chave de API.";
+
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: "Generate a helpful tip.",
@@ -125,7 +146,9 @@ export const generateMascotTip = async (): Promise<string> => {
  * @returns The generated text content.
  */
 export const generateDashboardSuggestion = async (clients: Client[]): Promise<string> => {
-    if (!process.env.API_KEY) return "💡 Configure sua Chave de API para receber sugestões personalizadas!";
+    const ai = getAiClient();
+    if (!ai) return "💡 Configure sua Chave de API para receber sugestões personalizadas!";
+    
     if (clients.length === 0) return "Adicione seus primeiros clientes para receber sugestões personalizadas!";
     
     // Create a concise summary of client data for the AI
@@ -147,7 +170,6 @@ export const generateDashboardSuggestion = async (clients: Client[]): Promise<st
     const clientSummary = `Client data summary: Total clients: ${clients.length}. Inactive clients (60+ days): ${inactiveClients}. Clients with birthdays in the next 30 days: ${upcomingBirthdays}.`;
 
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Based on this summary, give me one great suggestion. Summary: ${clientSummary}`,
