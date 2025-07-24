@@ -1,20 +1,45 @@
+
+
 import React, { useState, useMemo, useEffect, useCallback, ChangeEvent } from 'react';
 import type { Client, Appointment, Procedure, User, AnamnesisRecord, MaterialUsed, ProcedureImage, ProcedureStep } from '../types';
 import { importFromExcel, createEmptyAppointment } from '../services/clientService';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
-@@ -19,9 +19,10 @@ const emptyAnamnesisRecord: AnamnesisRecord = {
+import { Icon } from '../components/Icons';
+
+// --- HELPER FUNCTIONS & CONSTANTS ---
+const emptyAnamnesisRecord: AnamnesisRecord = {
+    healthHistory: { hypertension: false, diabetes: false, hormonalDisorders: false, epilepsy: false, heartDisease: false, autoimmuneDisease: false, respiratoryProblems: false, respiratoryAllergies: false, cancer: false, pacemaker: false, skinDisease: false, keloids: false, hepatitis: false, hiv: false, otherConditions: '' },
+    medications: { currentMedications: '', roaccutane: false, contraceptive: false },
+    allergies: { alcohol: false, latex: false, cosmetics: false, localAnesthetics: false, lashGlue: false, makeup: false, henna: false, otherAllergies: '' },
+    aestheticHistory: {
+        lashExtensions: { hasDoneBefore: false, hadReaction: false, reactionDescription: '', wearsContacts: false, usesEyeDrops: false },
+        browDesign: { usedHenna: false, allergicReactions: '', hasScars: false },
+        skinCare: { skinType: '', usesAcids: false, hadNeedling: false, recentProcedures: false }
+    },
     careRoutine: { usesSunscreen: false, currentProducts: '' },
     professionalNotes: '', imageAuth: false, declaration: false
 };
 const emptyClient: Omit<Client, 'id' | 'appointments'> = { name: '', phone: '', email: '', birthDate: '', gender: 'Prefiro não dizer', cpf: '', photo: '', profession: '', howTheyMetUs: '', aestheticGoals: '', usualProcedures: '', careFrequency: '', areasOfInterest: [], internalNotes: '', anamnesis: emptyAnamnesisRecord };
 type ClientStatus = 'Todos' | 'Ativos' | 'Inativos' | 'Aniversariantes';
 
+const getAvatarColor = (name: string) => {
+    const colors = ['bg-brand-pink-500', 'bg-brand-purple-500', 'bg-green-500', 'bg-blue-500', 'bg-yellow-500'];
+    const charCodeSum = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return colors[charCodeSum % colors.length];
+};
+
+
 // Reusable form components
 const InputField = ({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) => (
     <div>
         <label className="text-sm font-semibold text-gray-600 dark:text-gray-400 block mb-1">{label}</label>
-@@ -34,6 +35,21 @@ const TextAreaField = ({ label, ...props }: React.TextareaHTMLAttributes<HTMLTex
+        <input {...props} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-transparent focus:ring-2 focus:ring-brand-pink-500" />
+    </div>
+);
+const TextAreaField = ({ label, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) => (
+    <div>
+        <label className="text-sm font-semibold text-gray-600 dark:text-gray-400 block mb-1">{label}</label>
         <textarea {...props} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border-transparent focus:ring-2 focus:ring-brand-pink-500" />
     </div>
 );
@@ -36,7 +61,115 @@ const CheckboxField = ({ label, ...props }: React.InputHTMLAttributes<HTMLInputE
 
 // --- PAGE COMPONENT ---
 interface ClientsProps {
-@@ -148,6 +164,23 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
+    clients: Client[];
+    setClients: React.Dispatch<React.SetStateAction<Client[]>>;
+    procedures: Procedure[];
+    currentUser: User;
+}
+
+export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedures, currentUser }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ClientStatus>('Todos');
+  const [isAddModalOpen, setAddModalOpen] = useState(false);
+  const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [newClient, setNewClient] = useState(emptyClient);
+
+  const getClientStatus = useCallback((client: Client): { text: string; color: string; } => {
+    const today = new Date();
+    if (client.appointments.length === 0) return { text: 'Novo', color: 'bg-blue-500' };
+    const lastApptDate = new Date([...client.appointments].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date);
+    const diffDays = (today.getTime() - lastApptDate.getTime()) / (1000 * 3600 * 24);
+
+    if (diffDays <= 30) return { text: 'Recente', color: 'bg-green-500' };
+    if (diffDays <= 90) return { text: 'Ativo', color: 'bg-yellow-500' };
+    return { text: 'Inativo', color: 'bg-red-500' };
+  }, []);
+
+  const filteredClients = useMemo(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+
+    return clients
+      .filter(client => {
+        const searchMatch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          client.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          client.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+        if (!searchMatch) return false;
+
+        switch (statusFilter) {
+          case 'Aniversariantes':
+            if (!client.birthDate) return false;
+            const birthDate = new Date(client.birthDate);
+             // Adjust for timezone issues by only comparing month and day from UTC date
+            const birthMonth = birthDate.getUTCMonth();
+            return birthMonth === currentMonth;
+          case 'Ativos':
+            return getClientStatus(client).text !== 'Inativo';
+          case 'Inativos':
+            return getClientStatus(client).text === 'Inativo';
+          case 'Todos':
+          default:
+            return true;
+        }
+      }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [clients, searchTerm, statusFilter, getClientStatus]);
+
+  const handleViewDetails = (client: Client) => {
+    setSelectedClient(client);
+    setDetailsModalOpen(true);
+  };
+  
+  const handleAddClient = () => {
+    if (!newClient.name || !newClient.phone) {
+        toast.error('Nome e Telefone são obrigatórios.');
+        return;
+    }
+    const clientToAdd: Client = { ...newClient, id: `client-${Date.now()}`, appointments: [] };
+    setClients(prev => [clientToAdd, ...prev].sort((a, b) => a.name.localeCompare(b.name)));
+    setNewClient(emptyClient);
+    setAddModalOpen(false);
+    toast.success(`${clientToAdd.name} foi adicionado(a) com sucesso!`);
+  };
+
+  const handleDeleteClient = (clientId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este cliente? Todos os seus dados serão perdidos permanentemente.")) {
+      setClients(prev => prev.filter(c => c.id !== clientId));
+      setDetailsModalOpen(false);
+      toast.success("Cliente excluído com sucesso.");
+    }
+  };
+
+  const handleSaveClientDetails = (updatedClient: Client) => {
+      setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+      toast.success("Dados do cliente atualizados!");
+  }
+
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const toastId = toast.loading('Importando planilha...');
+    try {
+      const importedClients = await importFromExcel(file);
+      const existingNames = new Set(clients.map(c => c.name.toLowerCase()));
+      const newUniqueClients = importedClients.filter(ic => !existingNames.has(ic.name.toLowerCase()));
+      setClients(prev => [...prev, ...newUniqueClients].sort((a, b) => a.name.localeCompare(b.name)));
+      toast.success(`${newUniqueClients.length} novos clientes importados!`, { id: toastId });
+    } catch (error) {
+      toast.error(String(error), { id: toastId });
+    }
+    event.target.value = '';
+  };
+  
+  const getAvatar = (client: Client) => {
+      if (client.photo) return <img src={client.photo} alt={client.name} className="w-10 h-10 rounded-full object-cover"/>;
+      const initials = client.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      const colorClass = getAvatarColor(client.name);
+      return (
+          <div className={`w-10 h-10 rounded-full ${colorClass} text-white flex items-center justify-center font-bold text-sm`}>
+              {initials}
+          </div>
       );
   }
 
@@ -60,7 +193,25 @@ interface ClientsProps {
   return (
     <div className="p-4 md:p-6">
       <div className="bg-white/10 dark:bg-black/20 backdrop-blur-sm p-6 rounded-xl shadow-lg">
-@@ -173,7 +206,7 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
+        <h2 className="text-3xl font-bold font-serif text-gray-800 dark:text-white mb-6">Gestão de Clientes (CRM)</h2>
+        
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+          <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-1/3 p-3 bg-white/20 dark:bg-black/30 border border-gray-300/50 dark:border-gray-600/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-pink-300 transition-all" />
+          <div className="flex items-center gap-2 bg-white/20 dark:bg-black/30 p-1 rounded-full">
+            {(['Todos', 'Ativos', 'Inativos', 'Aniversariantes'] as ClientStatus[]).map(p => (
+              <button key={p} onClick={() => setStatusFilter(p)} className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${statusFilter === p ? 'bg-white dark:bg-gray-900 shadow text-brand-pink-500' : 'hover:bg-white/50 dark:hover:bg-black/50'}`}>{p}</button>
+            ))}
+          </div>
+          <div className='flex gap-2'>
+            <label htmlFor="excel-upload" className="w-full md:w-auto bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-all duration-300 transform hover:scale-105 cursor-pointer text-center">Importar</label>
+            <input id="excel-upload" type="file" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleFileImport} />
+            <button onClick={() => { setNewClient(emptyClient); setAddModalOpen(true); }} className="w-full md:w-auto bg-brand-pink-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-brand-pink-700 transition-all duration-300 transform hover:scale-105">Adicionar</button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-lg shadow-md">
+            <table className="min-w-full bg-white/50 dark:bg-gray-800/50">
+                <thead className="bg-white/30 dark:bg-gray-900/40">
                     <tr>{['Cliente', 'Contato', 'Status', 'Última Visita', 'Ações'].map(h => <th key={h} className="py-3 px-6 text-left text-gray-600 dark:text-gray-300 uppercase text-sm font-semibold tracking-wider">{h}</th>)}</tr>
                 </thead>
                 <tbody className="text-gray-700 dark:text-gray-200 text-sm">
@@ -68,7 +219,9 @@ interface ClientsProps {
                         const status = getClientStatus(client);
                         const lastVisit = client.appointments.length > 0 ? new Date([...client.appointments].sort((a,b)=>new Date(b.date).getTime() - new Date(a.date).getTime())[0].date).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'N/A';
                         return (
-@@ -183,4 +216,509 @@ export const Clients: React.FC<ClientsProps> = ({ clients, setClients, procedure
+                            <tr key={client.id} className="border-b border-gray-200/50 dark:border-gray-700/50 hover:bg-brand-purple-100/30 dark:hover:bg-brand-purple-700/30 transition-colors">
+                                <td className="py-2 px-6"><div className="flex items-center gap-3"><div className="flex-shrink-0">{getAvatar(client)}</div><span>{client.name}</span></div></td>
+                                <td className="py-4 px-6">{client.phone}</td>
                                 <td className="py-4 px-6"><span className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${status.color}`}>{status.text}</span></td>
                                 <td className="py-4 px-6">{lastVisit}</td>
                                 <td className="py-4 px-6"><div className='flex gap-2 justify-start'>
@@ -86,49 +239,37 @@ interface ClientsProps {
       </div>
 
        {/* Add Client Modal */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} title="Adicionar Nova Cliente" maxWidth="max-w-3xl">
-        <div className="space-y-4 max-h-[80vh] overflow-y-auto p-1 pr-2">
-            <h3 className="font-bold text-lg border-b border-gray-200 dark:border-gray-700 pb-2">1. Informações Básicas</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputField label="Nome Completo *" name="name" value={newClient.name} onChange={(e) => setNewClient({...newClient, name: e.target.value})} />
-                <InputField label="Data de Nascimento" type="date" name="birthDate" value={newClient.birthDate || ''} onChange={(e) => setNewClient({...newClient, birthDate: e.target.value})} />
-                <SelectField label="Gênero" name="gender" value={newClient.gender} onChange={(e) => setNewClient({...newClient, gender: e.target.value as any})}>
-                    <option value="Prefiro não dizer">Prefiro não dizer</option>
-                    <option value="Feminino">Feminino</option>
-                    <option value="Masculino">Masculino</option>
-                    <option value="Não Binário">Não Binário</option>
-                </SelectField>
-                <InputField label="Profissão" name="profession" value={newClient.profession || ''} onChange={(e) => setNewClient({...newClient, profession: e.target.value})} />
-                <InputField label="CPF" name="cpf" value={newClient.cpf || ''} onChange={(e) => setNewClient({...newClient, cpf: e.target.value})} />
-                <SelectField label="Como Conheceu o Studio?" name="howTheyMetUs" value={newClient.howTheyMetUs} onChange={(e) => setNewClient({...newClient, howTheyMetUs: e.target.value})}>
-                     <option value="">Selecione uma opção</option>
-                     <option value="Indicação">Indicação</option>
-                     <option value="Instagram">Instagram</option>
-                     <option value="Facebook">Facebook</option>
-                     <option value="Google">Google</option>
-                     <option value="Passou em frente">Passou em frente</option>
-                     <option value="Outro">Outro</option>
-                </SelectField>
-            </div>
-
-            <h3 className="font-bold text-lg border-b border-gray-200 dark:border-gray-700 pb-2 pt-4">2. Contato</h3>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputField label="Telefone com WhatsApp *" type="tel" name="phone" value={newClient.phone} onChange={(e) => setNewClient({...newClient, phone: e.target.value})} />
-                <InputField label="E-mail" type="email" name="email" value={newClient.email} onChange={(e) => setNewClient({...newClient, email: e.target.value})} />
-            </div>
-
-            <h3 className="font-bold text-lg border-b border-gray-200 dark:border-gray-700 pb-2 pt-4">3. Anamnese Essencial</h3>
-             <div className="space-y-2">
-                <TextAreaField label="Possui alergia a algum produto? Se sim, qual?" name="otherAllergies" value={newClient.anamnesis.allergies.otherAllergies} onChange={(e) => handleDeepChange('anamnesis.allergies.otherAllergies', e.target.value)} />
-                <TextAreaField label="Utiliza medicamentos contínuos? Se sim, quais?" name="currentMedications" value={newClient.anamnesis.medications.currentMedications} onChange={(e) => handleDeepChange('anamnesis.medications.currentMedications', e.target.value)} />
-                <CheckboxField label="Está gestante ou amamentando?" name="otherConditions" checked={newClient.anamnesis.healthHistory.otherConditions.includes('Gestante')} onChange={(e) => handleDeepChange('anamnesis.healthHistory.otherConditions', e.target.checked ? 'Gestante/Lactante' : '')} />
-            </div>
-
-            <h3 className="font-bold text-lg border-b border-gray-200 dark:border-gray-700 pb-2 pt-4">4. Termos e Observações</h3>
-             <div className="space-y-2">
-                 <CheckboxField label="Cliente aceita os termos de uso e política de privacidade." name="declaration" checked={newClient.anamnesis.declaration} onChange={(e) => handleDeepChange('anamnesis.declaration', e.target.checked)} />
-                 <CheckboxField label="Cliente autoriza o uso de imagem para divulgação." name="imageAuth" checked={newClient.anamnesis.imageAuth} onChange={(e) => handleDeepChange('anamnesis.imageAuth', e.target.checked)} />
-                <TextAreaField label="Observações Internas (visível apenas para a profissional)" name="internalNotes" value={newClient.internalNotes || ''} onChange={(e) => setNewClient({...newClient, internalNotes: e.target.value})} />
+      <Modal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} title="Adicionar Nova Cliente" maxWidth="max-w-4xl">
+        <div className="space-y-4 max-h-[80vh] overflow-y-auto p-1 pr-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className='space-y-4'>
+                    <h3 className="font-bold text-lg border-b border-gray-200 dark:border-gray-700 pb-2">1. Ficha Cadastral</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputField label="Nome Completo *" name="name" value={newClient.name} onChange={(e) => setNewClient({...newClient, name: e.target.value})} />
+                        <InputField label="Data de Nascimento" type="date" name="birthDate" value={newClient.birthDate || ''} onChange={(e) => setNewClient({...newClient, birthDate: e.target.value})} />
+                         <InputField label="Telefone com WhatsApp *" type="tel" name="phone" value={newClient.phone} onChange={(e) => setNewClient({...newClient, phone: e.target.value})} />
+                        <InputField label="E-mail" type="email" name="email" value={newClient.email} onChange={(e) => setNewClient({...newClient, email: e.target.value})} />
+                        <SelectField label="Como Conheceu o Studio?" name="howTheyMetUs" value={newClient.howTheyMetUs} onChange={(e) => setNewClient({...newClient, howTheyMetUs: e.target.value})}>
+                             <option value="">Selecione uma opção</option>
+                             <option value="Indicação">Indicação</option>
+                             <option value="Instagram">Instagram</option>
+                             <option value="Facebook">Facebook</option>
+                             <option value="Google">Google</option>
+                             <option value="Passou em frente">Passou em frente</option>
+                             <option value="Outro">Outro</option>
+                        </SelectField>
+                         <InputField label="Profissão" name="profession" value={newClient.profession || ''} onChange={(e) => setNewClient({...newClient, profession: e.target.value})} />
+                    </div>
+                     <h3 className="font-bold text-lg border-b border-gray-200 dark:border-gray-700 pb-2 pt-4">2. Preferências e Objetivos</h3>
+                     <div className="space-y-4">
+                        <TextAreaField label="Objetivos com os procedimentos" name="aestheticGoals" value={newClient.aestheticGoals || ''} onChange={(e) => setNewClient({...newClient, aestheticGoals: e.target.value})} />
+                        <TextAreaField label="Procedimentos que costuma realizar" name="usualProcedures" value={newClient.usualProcedures || ''} onChange={(e) => setNewClient({...newClient, usualProcedures: e.target.value})} />
+                    </div>
+                </div>
+                <div className='space-y-4'>
+                     <h3 className="font-bold text-lg border-b border-gray-200 dark:border-gray-700 pb-2">3. Anamnese Completa</h3>
+                     <AnamnesisForm anamnesis={newClient.anamnesis} onChange={handleDeepChange} />
+                </div>
             </div>
 
             <button onClick={handleAddClient} className="w-full bg-brand-pink-500 text-white font-bold py-3 rounded-lg hover:bg-brand-pink-700 transition-colors mt-6">
@@ -246,25 +387,25 @@ const AnamnesisForm: React.FC<{ anamnesis: AnamnesisRecord, onChange: (path: str
             <h3 className="font-bold text-xl border-b pb-2">Ficha de Anamnese Completa</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                  {/* Histórico de Saúde */}
-                <fieldset className="space-y-2">
+                <fieldset className="space-y-2 p-4 border rounded-lg">
                     <legend className="font-semibold text-lg mb-2">Histórico de Saúde</legend>
                     {Object.entries(anamnesis.healthHistory).filter(([key]) => key !== 'otherConditions').map(([key, value]) => (
-                        <CheckboxField key={key} label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} checked={value} onChange={handleCheckboxChange(`healthHistory.${key}`)} />
+                        <CheckboxField key={key} label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} checked={value as boolean} onChange={handleCheckboxChange(`healthHistory.${key}`)} />
                     ))}
                     <TextAreaField label="Outras Condições" value={anamnesis.healthHistory.otherConditions} onChange={handleValueChange('healthHistory.otherConditions')} />
                 </fieldset>
                 
                  {/* Alergias */}
-                <fieldset className="space-y-2">
+                <fieldset className="space-y-2 p-4 border rounded-lg">
                     <legend className="font-semibold text-lg mb-2">Alergias</legend>
                      {Object.entries(anamnesis.allergies).filter(([key]) => key !== 'otherAllergies').map(([key, value]) => (
-                        <CheckboxField key={key} label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} checked={value} onChange={handleCheckboxChange(`allergies.${key}`)} />
+                        <CheckboxField key={key} label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} checked={value as boolean} onChange={handleCheckboxChange(`allergies.${key}`)} />
                     ))}
                     <TextAreaField label="Outras Alergias" value={anamnesis.allergies.otherAllergies} onChange={handleValueChange('allergies.otherAllergies')} />
                 </fieldset>
 
                 {/* Medicações e Tratamentos */}
-                <fieldset className="col-span-1 md:col-span-2 space-y-2">
+                <fieldset className="col-span-1 md:col-span-2 space-y-2 p-4 border rounded-lg">
                     <legend className="font-semibold text-lg mb-2">Medicações e Tratamentos</legend>
                     <TextAreaField label="Medicações em uso" value={anamnesis.medications.currentMedications} onChange={handleValueChange('medications.currentMedications')} />
                     <div className="flex gap-6">
@@ -274,7 +415,7 @@ const AnamnesisForm: React.FC<{ anamnesis: AnamnesisRecord, onChange: (path: str
                 </fieldset>
                 
                 {/* Histórico Estético */}
-                <fieldset className="col-span-1 md:col-span-2 space-y-4">
+                <fieldset className="col-span-1 md:col-span-2 space-y-4 p-4 border rounded-lg">
                     <legend className="font-semibold text-lg mb-2">Histórico Estético</legend>
                      {/* Lash */}
                     <div className="p-4 border rounded-lg">
@@ -285,6 +426,15 @@ const AnamnesisForm: React.FC<{ anamnesis: AnamnesisRecord, onChange: (path: str
                             <TextAreaField label="Descrição da reação" value={anamnesis.aestheticHistory.lashExtensions.reactionDescription} onChange={handleValueChange('aestheticHistory.lashExtensions.reactionDescription')} className="col-span-2"/>
                              <CheckboxField label="Usa lentes de contato?" checked={anamnesis.aestheticHistory.lashExtensions.wearsContacts} onChange={handleCheckboxChange('aestheticHistory.lashExtensions.wearsContacts')} />
                             <CheckboxField label="Usa colírios?" checked={anamnesis.aestheticHistory.lashExtensions.usesEyeDrops} onChange={handleCheckboxChange('aestheticHistory.lashExtensions.usesEyeDrops')} />
+                        </div>
+                    </div>
+                     {/* Brows */}
+                    <div className="p-4 border rounded-lg">
+                        <h4 className="font-semibold">Design de Sobrancelhas</h4>
+                        <div className="grid grid-cols-2 gap-4 mt-2">
+                            <CheckboxField label="Já usou henna/tintura?" checked={anamnesis.aestheticHistory.browDesign.usedHenna} onChange={handleCheckboxChange('aestheticHistory.browDesign.usedHenna')} />
+                            <CheckboxField label="Possui falhas ou cicatrizes?" checked={anamnesis.aestheticHistory.browDesign.hasScars} onChange={handleCheckboxChange('aestheticHistory.browDesign.hasScars')} />
+                             <TextAreaField label="Reações alérgicas" value={anamnesis.aestheticHistory.browDesign.allergicReactions} onChange={handleValueChange('aestheticHistory.browDesign.allergicReactions')} className="col-span-2"/>
                         </div>
                     </div>
                      {/* Skin */}
@@ -305,7 +455,7 @@ const AnamnesisForm: React.FC<{ anamnesis: AnamnesisRecord, onChange: (path: str
                 </fieldset>
 
                  {/* Rotina e Termos */}
-                 <fieldset className="col-span-1 md:col-span-2 space-y-2">
+                 <fieldset className="col-span-1 md:col-span-2 space-y-2 p-4 border rounded-lg">
                     <legend className="font-semibold text-lg mb-2">Rotina e Consentimento</legend>
                     <CheckboxField label="Usa protetor solar diariamente?" checked={anamnesis.careRoutine.usesSunscreen} onChange={handleCheckboxChange('careRoutine.usesSunscreen')} />
                     <TextAreaField label="Produtos em uso" value={anamnesis.careRoutine.currentProducts} onChange={handleValueChange('careRoutine.currentProducts')} />
@@ -403,7 +553,7 @@ const AppointmentRecordModal: React.FC<{ isOpen: boolean, onClose: () => void, a
                 cost: selectedProc.defaultCost,
                 duration: selectedProc.defaultDuration,
                 postProcedureInstructions: selectedProc.defaultPostProcedureInstructions,
-                procedureSteps: [
+                procedureSteps: prev.procedureSteps.length > 0 ? prev.procedureSteps : [ // Keep existing steps if already there
                     {id: 'step1', name: 'Higienização', done: false},
                     {id: 'step2', name: 'Aplicação', done: false},
                     {id: 'step3', name: 'Finalização', done: false},
@@ -411,6 +561,22 @@ const AppointmentRecordModal: React.FC<{ isOpen: boolean, onClose: () => void, a
             }));
         }
     }, [record.procedureName, procedures]);
+
+    // Auto-calculate end time
+    useEffect(() => {
+        if (record.startTime && record.duration) {
+            const [hours, minutes] = record.startTime.split(':').map(Number);
+            if (!isNaN(hours) && !isNaN(minutes)) {
+                const startDate = new Date();
+                startDate.setHours(hours, minutes, 0, 0);
+                const endDate = new Date(startDate.getTime() + record.duration * 60000);
+                const endHours = String(endDate.getHours()).padStart(2, '0');
+                const endMinutes = String(endDate.getMinutes()).padStart(2, '0');
+                setRecord(prev => ({ ...prev, endTime: `${endHours}:${endMinutes}` }));
+            }
+        }
+    }, [record.startTime, record.duration]);
+
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const {name, value, type} = e.target;
@@ -426,7 +592,7 @@ const AppointmentRecordModal: React.FC<{ isOpen: boolean, onClose: () => void, a
     }
     
     const addMaterial = () => {
-        setRecord(prev => ({...prev, materials: [...prev.materials, {id: `mat-${Date.now()}`, name: '', quantity: '1', unit: 'un', cost: 0}]}));
+        setRecord(prev => ({...prev, materials: [...prev.materials, {id: `mat-${Date.now()}`, name: '', quantity: '1', unit: 'un', cost: 0, lotNumber: '', expirationDate: ''}]}));
     }
 
     const removeMaterial = (index: number) => {
@@ -454,6 +620,11 @@ const AppointmentRecordModal: React.FC<{ isOpen: boolean, onClose: () => void, a
      const handleStepToggle = (stepId: string) => {
         setRecord(prev => ({...prev, procedureSteps: prev.procedureSteps.map(s => s.id === stepId ? {...s, done: !s.done} : s)}));
     }
+    
+    const handleTagsChange = (e: ChangeEvent<HTMLInputElement>) => {
+        const tagsArray = e.target.value.split(',').map(tag => tag.trim());
+        setRecord(prev => ({...prev, tags: tagsArray}));
+    }
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={record.id.startsWith('appt-') ? "Registrar Novo Atendimento" : "Editar Atendimento"} maxWidth="max-w-4xl">
@@ -477,14 +648,30 @@ const AppointmentRecordModal: React.FC<{ isOpen: boolean, onClose: () => void, a
                                 <InputField label="Categoria" name="category" value={record.category} onChange={handleChange} disabled/>
                                 <InputField label="Data" type="date" name="date" value={record.date} onChange={handleChange}/>
                                 <InputField label="Profissional" name="professional" value={record.professional || currentUser.fullName || ''} onChange={handleChange}/>
+                                <InputField label="Hora Início" type="time" name="startTime" value={record.startTime} onChange={handleChange}/>
+                                <InputField label="Hora Término" type="time" name="endTime" value={record.endTime} onChange={handleChange}/>
                                 <InputField label="Duração (min)" type="number" name="duration" value={record.duration} onChange={handleChange}/>
-                                <TextAreaField label="Observações Gerais" name="generalNotes" value={record.generalNotes} onChange={handleChange}/>
+                                <TextAreaField label="Observações Gerais" name="generalNotes" value={record.generalNotes} onChange={handleChange} className="col-span-2"/>
                              </div>
                         </div>
                     )}
                      {activeTab === 'technical' && (
                         <div>
-                            <h4 className="font-bold text-lg mb-2">Materiais, Equipamentos e Etapas</h4>
+                            <h4 className="font-bold text-lg mb-2">Detalhes Técnicos</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <InputField label="Técnica Aplicada" name="technique" placeholder="Ex: Fio a Fio, Volume Russo..." value={record.technique} onChange={handleChange}/>
+                                <SelectField label="Dificuldade Percebida" name="difficulty" value={record.difficulty} onChange={handleChange}>
+                                    <option value="">Selecione...</option><option>Fácil</option><option>Médio</option><option>Difícil</option>
+                                </SelectField>
+                            </div>
+                            <div className="mt-4">
+                               <CheckboxField label="Houve reação ou sensibilidade?" checked={!!record.reactionDescription} onChange={e => setRecord({...record, reactionDescription: e.target.checked ? ' ' : ''})} />
+                                {record.reactionDescription && <TextAreaField label="Descreva a reação" name="reactionDescription" value={record.reactionDescription} onChange={handleChange} className="mt-2"/>}
+                            </div>
+                            <div className="mt-4">
+                               <InputField label="Tags (separadas por vírgula)" placeholder="Ex: lifting, promocao, primeira vez" value={record.tags.join(', ')} onChange={handleTagsChange} />
+                            </div>
+                            <h4 className="font-bold text-lg mb-2 mt-4">Materiais, Equipamentos e Etapas</h4>
                             <InputField label="Equipamentos Utilizados" name="equipmentUsed" placeholder="Ex: Radiofrequência Spectra G3, Dermógrafo..." value={record.equipmentUsed} onChange={handleChange}/>
                             <div className="my-4">
                                 <h5 className="font-semibold mb-2">Etapas Executadas</h5>
@@ -495,11 +682,12 @@ const AppointmentRecordModal: React.FC<{ isOpen: boolean, onClose: () => void, a
                             <div>
                                 <h5 className="font-semibold mb-2">Materiais Utilizados (Custo Total: {record.cost.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})})</h5>
                                 {record.materials.map((mat, index) => (
-                                    <div key={mat.id} className="grid grid-cols-5 gap-2 mb-2 items-center">
+                                    <div key={mat.id} className="grid grid-cols-1 md:grid-cols-6 gap-2 mb-2 items-center">
                                         <input type="text" placeholder="Nome" value={mat.name} onChange={e => handleMaterialChange(index, 'name', e.target.value)} className="col-span-2 p-1.5 bg-gray-100 dark:bg-gray-800 rounded text-sm"/>
                                         <input type="text" placeholder="Qtd" value={mat.quantity} onChange={e => handleMaterialChange(index, 'quantity', e.target.value)} className="p-1.5 bg-gray-100 dark:bg-gray-800 rounded text-sm"/>
                                         <input type="number" placeholder="Custo" value={mat.cost || ''} onChange={e => handleMaterialChange(index, 'cost', parseFloat(e.target.value) || 0)} className="p-1.5 bg-gray-100 dark:bg-gray-800 rounded text-sm"/>
-                                        <button onClick={() => removeMaterial(index)} className="text-red-500">×</button>
+                                        <input type="text" placeholder="Lote" value={mat.lotNumber || ''} onChange={e => handleMaterialChange(index, 'lotNumber', e.target.value)} className="p-1.5 bg-gray-100 dark:bg-gray-800 rounded text-sm"/>
+                                        <button onClick={() => removeMaterial(index)} className="text-red-500 font-bold text-lg">×</button>
                                     </div>
                                 ))}
                                 <button onClick={addMaterial} className="text-sm text-blue-500 font-semibold">+ Adicionar Material</button>

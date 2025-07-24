@@ -54,6 +54,8 @@ export interface MaterialUsed {
     quantity: string;
     unit: string;
     cost: number;
+    lotNumber?: string;
+    expirationDate?: string;
 }
 
 export interface ProcedureImage {
@@ -61,6 +63,12 @@ export interface ProcedureImage {
     url: string; // base64
     type: 'Antes' | 'Depois' | 'Durante';
     caption: string;
+}
+
+export interface ProcedureStep {
+    id: string;
+    name: string;
+    done: boolean;
 }
 
 /**
@@ -79,14 +87,17 @@ export interface Appointment {
     professional: string;
     generalNotes: string;
     
-    // Section 2: Materiais
+    // Section 2: Materiais e Técnicas
     materials: MaterialUsed[];
-    
-    // Section 3: Detalhes do Procedimento
-    duration: number; // in minutes, calculated from start/end time or manual
+    equipmentUsed: string;
+    procedureSteps: ProcedureStep[];
+    technique: string;
+    difficulty: 'Fácil' | 'Médio' | 'Difícil' | '';
+    reactionDescription: string;
     technicalNotes: string;
+    tags: string[];
     
-    // Section 4: Financeiro
+    // Section 3: Financeiro
     value: number;
     discount: number;
     finalValue: number;
@@ -95,29 +106,30 @@ export interface Appointment {
     cost: number; // calculated from materials
     commission: number; // in percentage or absolute value
     
-    // Section 5: Imagens
+    // Section 4: Imagens
     media: ProcedureImage[];
     
-    // Section 6: Anamnese (linked implicitly by being part of a Client)
-    
-    // Section 7: Pós-Atendimento
+    // Section 5: Pós-Atendimento
     postProcedureInstructions: string;
     requiresReturn: boolean;
     returnDate?: string;
     
-    // Section 8: Documentação & Configurações Internas
+    // Section 6: Documentação & Configurações Internas
     consentSigned: boolean;
     imageAuthSigned: boolean;
-    isActiveInCatalog: boolean; 
     
-    // Section 9: Avaliação
+    // Section 7: Avaliação
     clientSatisfaction: number; // 0-5 stars
     internalNotes: string;
     
     // Legacy fields for compatibility. `procedure` is now `procedureName`, `price` is `value`.
     procedure: string;
     price: number; 
+    duration: number; // in minutes, calculated from start/end time or manual
     time: string; // Replaced by startTime/endTime
+
+    // Field removed as it's part of the procedure template, not the record.
+    // isActiveInCatalog: boolean; 
 }
 
 
@@ -221,6 +233,13 @@ export interface Client {
     profession?: string;
     howTheyMetUs?: string;
     tags?: string[];
+    // New aesthetic preferences fields
+    aestheticGoals?: string;
+    usualProcedures?: string;
+    careFrequency?: string;
+    areasOfInterest?: string[];
+    // Internal notes for the professional
+    internalNotes?: string;
     anamnesis: AnamnesisRecord;
     appointments: Appointment[];
 }
